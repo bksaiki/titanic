@@ -282,3 +282,9 @@ def show_bitpattern(x, ctx=None):
 #         i.to_bytes(nbytes, sys.byteorder),
 #         dtype=dtype, count=1, offset=0,
 #     )[0]
+
+def test():
+    try:
+        Float(1e200).exp_()
+    except gmpmath.gmp.OverflowResultError as err:
+        print(repr(err), err.args)

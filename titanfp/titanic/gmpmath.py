@@ -12,6 +12,21 @@ from . import ops
 from . import digital
 from .sinking import Sink
 
+class OverflowResultError(gmp.OverflowResultError):
+    def __init__(self, sign=None):
+        super().__init__('overflow')
+        self.sign = sign
+
+    def __repr__(self):
+        return '{}(sign={})'.format(type(self).__name__, self.sign)
+
+class UnderflowResultError(gmp.UnderflowResultError):
+    def __init__(self, sign=None):
+        super().__init__('underflow')
+        self.sign = sign
+
+    def __repr__(self):
+        return '{}(sign={})'.format(type(self).__name__, self.sign)
 
 def mpfr(x, prec):
     with gmp.context(
@@ -100,8 +115,12 @@ def digital_to_mpfr(x):
 
 
 def mpfr_to_digital(x, ignore_rc=False):
-    rounded = x.rc != 0 and not ignore_rc
+    if ignore_rc:
+        rc = 0
+    else:
+        rc = x.rc
 
+    rounded = rc != 0
     if gmp.is_nan(x):
         return digital.Digital(
             isnan=True,
@@ -120,12 +139,8 @@ def mpfr_to_digital(x, ignore_rc=False):
     # get the right answer, so if we rounded away from zero, it's -1, and if we rounded
     # towards zero, it's 1.
 
-    if ignore_rc:
-        rc = 0
-    elif negative:
-        rc = x.rc
-    else:
-        rc = -x.rc
+    if not negative:
+        rc = -rc
 
     if gmp.is_infinite(x):
         return digital.Digital(
@@ -235,7 +250,7 @@ gmp_ops = [
 ]
 
 
-def compute(opcode, *args, prec=53, trap_underflow=True, trap_overflow=True):
+def compute(opcode, *args, prec=53):
     """Compute op(*args), with up to prec bits of precision.
     op is specified via opcode, and arguments are universal digital numbers.
     Arguments are treated as exact: the inexactness and result code of the result
@@ -259,8 +274,8 @@ def compute(opcode, *args, prec=53, trap_underflow=True, trap_overflow=True):
             subnormalize=False,
             # in theory, we'd like to know about these...
             # only interval arithmetic disables these
-            trap_underflow=trap_underflow,
-            trap_overflow=trap_overflow,
+            trap_underflow=False,
+            trap_overflow=False,
             # inexact and invalid operations should not be a problem
             trap_inexact=False,
             trap_invalid=False,
@@ -275,10 +290,10 @@ def compute(opcode, *args, prec=53, trap_underflow=True, trap_overflow=True):
             round=gmp.RoundToZero,
     ) as gmpctx:
         result = op(*inputs)
+        if gmpctx.overflow:
+            raise OverflowResultError(gmp.is_signed(result))
         if gmpctx.underflow:
-            result = gmp.mpfr(0)
-        elif gmpctx.overflow:
-            result = gmp.inf(gmp.sign(result))
+            raise UnderflowResultError(gmp.is_signed(result))
 
     # result code is not the classic ternary value in these cases
     if opcode == ops.OP.round or \

@@ -61,7 +61,7 @@ def rint(x: ieee754.Float, ctx):
             emin=gmp.get_emin_min(),
             emax=gmp.get_emax_max(),
             subnormalize=False,
-            # unlike `gmpmath.compute()`, these are disabled
+            # we trigger our own exceptions
             trap_underflow=False,
             trap_overflow=False,
             # inexact and invalid operations should not be a problem
@@ -78,10 +78,10 @@ def rint(x: ieee754.Float, ctx):
             round=gmp.RoundToZero,
     ) as gmpctx:
         result = gmp.rint(input)
+        if gmpctx.overflow:
+            raise gmpmath.OverflowResultError(gmp.is_signed(result))
         if gmpctx.underflow:
-            result = gmp.mpfr(0)
-        elif gmpctx.overflow:
-            result = gmp.inf(gmp.sign(result))
+            raise gmpmath.UnderflowResultError(gmp.is_signed(result))
 
     return x._round_to_context(gmpmath.mpfr_to_digital(result, ignore_rc=True), ctx=ctx, strict=True)
 
@@ -359,7 +359,12 @@ def _epfn(op, *eps, ctx):
         args.append(ival)
         args_fixed = args_fixed and isfixed
 
-    result = gmpmath.compute(op, *args, prec=ctx.p, trap_underflow=False, trap_overflow=False)
+    try:
+        result = gmpmath.compute(op, *args, prec=ctx.p)
+    except gmpmath.OverflowResultError as err:
+        result = ieee754.Float(isinf=True, inexact=True, negative=err.sign, ctx=ctx)
+    except gmpmath.UnderflowResultError as err:
+        result = ieee754.Float(c=0, exp=0, inexact=True, negative=err.sign, ctx=ctx)
     rounded = ieee754.Float._round_to_context(result, ctx=ctx)
     isfixed = args_fixed and not rounded.inexact
     return rounded, isfixed
@@ -412,7 +417,13 @@ def _eprint(ep, ctx):
 def _eppow(a_ep, b_ep, aclass, bclass, ctx):
     a, a_isfixed, = a_ep
     b, b_isfixed, = b_ep
-    result = gmpmath.compute(OP.pow, a, b, prec=ctx.p, trap_underflow=False, trap_overflow=False)
+    try:
+        result = gmpmath.compute(OP.pow, a, b, prec=ctx.p)
+    except gmpmath.OverflowResultError as err:
+        result = ieee754.Float(isinf=True, inexact=True, negative=err.sign, ctx=ctx)
+    except gmpmath.UnderflowResultError as err:
+        result = ieee754.Float(c=0, exp=0, inexact=True, negative=err.sign, ctx=ctx)
+
     rounded = ieee754.Float._round_to_context(result, ctx=ctx)
     isfixed = (a_isfixed and b_isfixed and not rounded.inexact) or \
                 (a_isfixed and a == digital.Digital(c=1, exp=0)) or \
@@ -2268,12 +2279,22 @@ def test_ternary_fn(name, fl_fn, ival_fn, num_tests, ctx, verbose):
 
 def pow_overflow(x: ieee754.Float, y: ieee754.Float, ctx):
     ctx = x._select_context(x, y, ctx=ctx)
-    result = gmpmath.compute(OP.pow, x, y, prec=ctx.p, trap_underflow=False, trap_overflow=False)
+    try:
+        result = gmpmath.compute(OP.pow, x, y, prec=ctx.p)
+    except gmpmath.OverflowResultError as err:
+        result = ieee754.Float(isinf=True, inexact=True, negative=err.sign, ctx=ctx)
+    except gmpmath.UnderflowResultError as err:
+        result = ieee754.Float(c=0, exp=0, inexact=True, negative=err.sign, ctx=ctx)
     return ieee754.Float._round_to_context(result, ctx)
 
 def sinh_overflow(x: ieee754.Float, ctx):
     ctx = x._select_context(x, ctx=ctx)
-    result = gmpmath.compute(OP.sinh, x, prec=ctx.p, trap_underflow=False, trap_overflow=False)
+    try:
+        result = gmpmath.compute(OP.sinh, x, prec=ctx.p)
+    except gmpmath.OverflowResultError as err:
+        result = ieee754.Float(isinf=True, inexact=True, negative=err.sign, ctx=ctx)
+    except gmpmath.UnderflowResultError as err:
+        result = ieee754.Float(c=0, exp=0, inexact=True, negative=err.sign, ctx=ctx)
     return ieee754.Float._round_to_context(result, ctx)
 
 def test_interval_thread(config):
