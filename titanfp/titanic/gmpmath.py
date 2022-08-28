@@ -399,10 +399,158 @@ def compute_digits(m, e, b, prec=53):
 
     return mpfr_to_digital(result)
 
+def ieee_minsub(w, p):
+    """Compute the the smallest, positive, subnormal IEEE-754 floating-point value
+    for a given w and p. This value is representable in the IEEE-754 format
+    with `w` bits of exponent and `p` bits of mantissa (including the sign).
+    """
+    emax = (1 << (w - 1)) - 1
+    emin = 1 - emax
 
-def ieee_fbound(w, p):
-    """Compute the boundary where IEEE 754 floating-point values
-    will be rounded away to infinity for a given w and p.
+    with gmp.context(
+            precision=p,
+            emin=gmp.get_emin_min(),
+            emax=gmp.get_emax_max(),
+            trap_underflow=True,
+            trap_overflow=True,
+            trap_inexact=True,
+            trap_invalid=True,
+            trap_erange=True,
+            trap_divzero=True,
+    ):
+        minsub = gmp.exp2(emin + (1 - p))
+
+    return mpfr_to_digital(minsub)
+
+def ieee_maxsub(w, p):
+    """Compute the the largest, positive, subnormal IEEE-754 floating-point value
+    for a given w and p. This value is representable in the IEEE-754 format
+    with `w` bits of exponent and `p` bits of mantissa (including the sign).
+    """
+    emax = (1 << (w - 1)) - 1
+    emin = 1 - emax
+
+    with gmp.context(
+            precision=p,
+            emin=gmp.get_emin_min(),
+            emax=gmp.get_emax_max(),
+            trap_underflow=True,
+            trap_overflow=True,
+            trap_inexact=True,
+            trap_invalid=True,
+            trap_erange=True,
+            trap_divzero=True,
+    ):
+        maxsub_scale = gmp.mpfr(1) - gmp.exp2(1 - p)
+        maxsub = gmp.exp2(emin) * maxsub_scale
+
+    return mpfr_to_digital(maxsub)
+
+def ieee_tinyval(w, p):
+    """Computes the halfway point between the largest (positive) subnormal and
+    the smallest normal IEEE-754 floating-point value for a given w and p.
+    This value is NOT representable in the IEEE-754 format with `w` bits of exponent and
+    `p` bits of mantissa (including the sign). Requires one extra bit of mantissa
+    to be representable.
+    """
+    emax = (1 << (w - 1)) - 1
+    emin = 1 - emax
+
+    with gmp.context(
+            precision=p+1,
+            emin=gmp.get_emin_min(),
+            emax=gmp.get_emax_max(),
+            trap_underflow=True,
+            trap_overflow=True,
+            trap_inexact=True,
+            trap_invalid=True,
+            trap_erange=True,
+            trap_divzero=True,
+    ):
+        tinyval_scale = gmp.mpfr(1) - gmp.exp2(-p)
+        tinyval = gmp.exp2(emin) * tinyval_scale
+
+    return mpfr_to_digital(tinyval)
+
+def ieee_subbound(w, p):
+    """Computes point 3/4 of the way from the largest (positive) subnormal
+    and the smallest normal IEEE-754 floating-point value for a given w and p.
+    This is also the halfway point between `ieee_tinyval(w, p)` and `ieee_minnorm(w, p)`.
+    This value is NOT representable in the IEEE-754 format with `w` bits of exponent and
+    `p` bits of mantissa (including the sign). Requires two extra bits of mantissa
+    to be representable.
+    """
+    emax = (1 << (w - 1)) - 1
+    emin = 1 - emax
+
+    with gmp.context(
+            precision=p+2,
+            emin=gmp.get_emin_min(),
+            emax=gmp.get_emax_max(),
+            trap_underflow=True,
+            trap_overflow=True,
+            trap_inexact=True,
+            trap_invalid=True,
+            trap_erange=True,
+            trap_divzero=True,
+    ):
+        tinyval_scale = gmp.mpfr(1) - gmp.exp2(-p - 1)
+        tinyval = gmp.exp2(emin) * tinyval_scale
+
+    return mpfr_to_digital(tinyval)
+
+def ieee_minnorm(w, p):
+    """Compute the the smallest, positive, normal IEEE-754 floating-point value
+    for a given w and p. This value is representable in the IEEE-754 format with
+    `w` bits of exponent and `p` bits of mantissa (including the sign).
+    to be representable.
+    """
+    emax = (1 << (w - 1)) - 1
+    emin = 1 - emax
+
+    with gmp.context(
+            precision=p,
+            emin=gmp.get_emin_min(),
+            emax=gmp.get_emax_max(),
+            trap_underflow=True,
+            trap_overflow=True,
+            trap_inexact=True,
+            trap_invalid=True,
+            trap_erange=True,
+            trap_divzero=True,
+    ):
+        minnorm = gmp.exp2(emin)
+
+    return mpfr_to_digital(minnorm)
+
+def ieee_maxnorm(w, p):
+    """Compute the the largest, positive, normal IEEE-754 floating-point value
+    for a given w and p. This value is representable in the IEEE-754 format with
+    `w` bits of exponent and `p` bits of mantissa (including the sign).
+    """
+    emax = (1 << (w - 1)) - 1
+
+    with gmp.context(
+            precision=p,
+            emin=gmp.get_emin_min(),
+            emax=gmp.get_emax_max(),
+            trap_underflow=True,
+            trap_overflow=True,
+            trap_inexact=True,
+            trap_invalid=True,
+            trap_erange=True,
+            trap_divzero=True,
+    ):
+        maxnorm_scale = gmp.mpfr(2) - gmp.exp2(1 - p)
+        maxnorm = gmp.exp2(emax) * maxnorm_scale
+
+    return mpfr_to_digital(maxnorm)
+
+def ieee_maxbound(w, p):
+    """Compute the boundary where IEEE-754 floating-point values
+    will be rounded away to infinity for a given w and p. This value is NOT representable
+    in the IEEE-754 format with `w` bits of exponent and `p` bits of mantissa (including the sign).
+    Requires one extra bit of mantissa to be representable.
     """
     emax = (1 << (w - 1)) - 1
 
@@ -417,19 +565,21 @@ def ieee_fbound(w, p):
             trap_erange=True,
             trap_divzero=True,
     ):
-        fbound_scale = gmp.mpfr(2) - gmp.exp2(-p)
-        fbound = gmp.exp2(emax) * fbound_scale
+        maxbound_scale = gmp.mpfr(2) - gmp.exp2(-p)
+        maxbound = gmp.exp2(emax) * maxbound_scale
 
-    return mpfr_to_digital(fbound)
+    return mpfr_to_digital(maxbound)
 
-def ieee_fmax(w, p):
-    """Compute the the largest finite IEEE 754 floating-point value
-    for a given w and p.
+def ieee_infval(w, p):
+    """Compute the IEEE-754 floating-point value above the largest floating-point
+    value for a given w and p if the exponent were unbounded. This value is NOT representable
+    in the IEEE-754 format with `w` bits of exponent and `p` bits of mantissa (including the sign).
+    Requires an additional bit of exponent.
     """
     emax = (1 << (w - 1)) - 1
 
     with gmp.context(
-            precision=p + 1,
+            precision=p,
             emin=gmp.get_emin_min(),
             emax=gmp.get_emax_max(),
             trap_underflow=True,
@@ -439,10 +589,9 @@ def ieee_fmax(w, p):
             trap_erange=True,
             trap_divzero=True,
     ):
-        fmax_scale = gmp.mpfr(2) - gmp.exp2(1 - p)
-        fmax = gmp.exp2(emax) * fmax_scale
+        infval = gmp.exp2(emax + 1)
 
-    return mpfr_to_digital(fmax)
+    return mpfr_to_digital(infval)
 
 
 _mpz_2 = gmp.mpz(2)

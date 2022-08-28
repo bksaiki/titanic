@@ -140,17 +140,26 @@ IEEE_rm.update((k, RM.RAZ) for k in RAZ_synonyms)
 
 class IEEECtx(EvalCtx):
     """Context for IEEE 754-like arithmetic."""
-
+    # parameters
     es = 11
     nbits = 64
     rm = RM.RNE
 
+    # computed parameters
     p = nbits - es
     emax = (1 << (es - 1)) - 1
     emin = 1 - emax
     n = emin - p
-    fbound = gmpmath.ieee_fbound(es, p)
-    fmax = gmpmath.ieee_fmax(es, p)
+
+    # floating-point boundaries and limits
+    minsub = gmpmath.ieee_minsub(es, p)
+    maxsub = gmpmath.ieee_maxsub(es, p)
+    tinyval = gmpmath.ieee_tinyval(es, p)
+    subbound = gmpmath.ieee_subbound(es, p)
+    minnorm = gmpmath.ieee_minnorm(es, p)
+    maxnorm = gmpmath.ieee_maxnorm(es, p)
+    maxbound = gmpmath.ieee_maxbound(es, p)
+    infval = gmpmath.ieee_infval(es, p)
 
     def __init__(self, bindings=None, props=None, es=None, nbits=None, rm=None):
         init_es = self.es
@@ -207,8 +216,14 @@ class IEEECtx(EvalCtx):
             self.emax = (1 << (self.es - 1)) - 1
             self.emin = 1 - self.emax
             self.n = self.emin - self.p
-            self.fbound = gmpmath.ieee_fbound(self.es, self.p)
-            self.fmax = gmpmath.ieee_fmax(self.es, self.p)
+            self.minsub = gmpmath.ieee_minsub(self.es, self.p)
+            self.maxsub = gmpmath.ieee_maxsub(self.es, self.p)
+            self.tinyval = gmpmath.ieee_tinyval(self.es, self.p)
+            self.subbound = gmpmath.ieee_subbound(self.es, self.p)
+            self.minnorm = gmpmath.ieee_minnorm(self.es, self.p)
+            self.maxnorm = gmpmath.ieee_maxnorm(self.es, self.p)
+            self.maxbound = gmpmath.ieee_maxbound(self.es, self.p)
+            self.infval = gmpmath.ieee_infval(self.es, self.p)
         else:
             self.es = self.es
             self.nbits = self.nbits
@@ -216,8 +231,14 @@ class IEEECtx(EvalCtx):
             self.emax = self.emax
             self.emin = self.emin
             self.n = self.n
-            self.fbound = self.fbound
-            self.fmax = self.fmax
+            self.minsub = self.minsub
+            self.maxsub = self.maxsub
+            self.tinyval = self.tinyval
+            self.subbound = self.subbound
+            self.minnorm = self.minnorm
+            self.maxnorm = self.maxnorm
+            self.maxbound = self.maxbound
+            self.infval = self.infval
 
     def _update_props(self, props):
         init_es = self.es
@@ -258,8 +279,14 @@ class IEEECtx(EvalCtx):
             self.emax = (1 << (self.es - 1)) - 1
             self.emin = 1 - self.emax
             self.n = self.emin - self.p
-            self.fbound = gmpmath.ieee_fbound(self.es, self.p)
-            self.fmax = gmpmath.ieee_fmax(self.es, self.p)
+            self.minsub = gmpmath.ieee_minsub(self.es, self.p)
+            self.maxsub = gmpmath.ieee_maxsub(self.es, self.p)
+            self.tinyval = gmpmath.ieee_tinyval(self.es, self.p)
+            self.subbound = gmpmath.ieee_subbound(self.es, self.p)
+            self.minnorm = gmpmath.ieee_minnorm(self.es, self.p)
+            self.maxnorm = gmpmath.ieee_maxnorm(self.es, self.p)
+            self.maxbound = gmpmath.ieee_maxbound(self.es, self.p)
+            self.infval = gmpmath.ieee_infval(self.es, self.p)
 
 
     def _import_fields(self, ctx):
@@ -270,8 +297,14 @@ class IEEECtx(EvalCtx):
         self.emax = ctx.emax
         self.emin = ctx.emin
         self.n = ctx.n
-        self.fbound = ctx.fbound
-        self.fmax = ctx.fmax
+        self.minsub = ctx.minsub
+        self.maxsub = ctx.maxsub
+        self.tinyval = ctx.tinyval
+        self.subbound = ctx.subbound
+        self.minnorm = ctx.minnorm
+        self.maxnorm = ctx.maxnorm
+        self.maxbound = ctx.maxbound
+        self.infval = ctx.infval
 
     def __repr__(self):
         args = []

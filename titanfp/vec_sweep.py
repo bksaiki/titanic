@@ -98,7 +98,7 @@ def mk_dotprod(template, overall_prec, mul_prec, sum_prec):
 
 def largest_representable(ctx):
     if isinstance(ctx, evalctx.IEEECtx):
-        return mpmf.MPMF(ctx.fbound, ctx)
+        return mpmf.MPMF(ctx.maxbound, ctx)
     elif isinstance(ctx, evalctx.PositCtx):
         return mpmf.MPMF(m=1, exp=ctx.emax, ctx=ctx)
     else:

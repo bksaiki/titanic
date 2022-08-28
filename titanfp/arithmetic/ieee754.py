@@ -92,8 +92,8 @@ class Float(mpnum.MPNum):
             return cls(unrounded, ctx=ctx)
         magnitude = cls(unrounded, negative=False)
 
-        # check against fbound
-        if magnitude > ctx.fbound or (magnitude == ctx.fbound and magnitude.rc >= 0):
+        # check against maxbound
+        if magnitude > ctx.maxbound or (magnitude == ctx.maxbound and magnitude.rc >= 0):
             if ctx.rm == RM.RTZ:
                 return cls(negative=unrounded.negative, x=ctx.fmax, ctx=ctx)
             elif ctx.rm == RM.RTP:
