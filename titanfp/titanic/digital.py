@@ -810,7 +810,7 @@ class Digital(object):
                     elif mode is RoundingMode.AWAY_ZERO:
                         direction = RoundingDirection.ROUND_AWAY
                     elif mode is RoundingMode.TO_EVEN:
-                        if utils.is_even_for_rounding(c, exp):
+                        if utils.is_even_for_rounding(p, c, exp):
                             direction = RoundingDirection.TRUNCATE
                         else:
                             direction = RoundingDirection.ROUND_AWAY

@@ -66,12 +66,12 @@ def maskbits(x: int, n:int) -> int:
     else:
         return x & (-1 << -n)
 
-def is_even_for_rounding(c, exp):
+def is_even_for_rounding(p, c, exp):
     """General-purpose tiebreak used when rounding to even.
     If the significand is less than two bits,
     decide evenness based on the representation of the exponent.
     """
-    if c.bit_length() > 1:
-        return c & 1 == 0
-    else:
+    if p == 1:
         return exp & 1 == 0
+    else:
+        return c & 1 == 0

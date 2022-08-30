@@ -1,12 +1,16 @@
 """Emulated IEEE 754 floating-point arithmetic.
 """
 
+from inspect import getargspec
+import multiprocessing as mp
+import gmpy2 as gmp
+
 from ..titanic import gmpmath
 from ..titanic import digital
 
 from ..titanic.integral import bitmask
 from ..titanic.ops import RM, OP
-from .evalctx import IEEECtx
+from .evalctx import EvalCtx, IEEECtx
 from . import mpnum
 from . import interpreter
 
@@ -81,7 +85,7 @@ class Float(mpnum.MPNum):
             self._invalid = self._divzero
             self._divzero = False
             self._overflow = self._isinf and self._inexact
-            self._underflow = type(self)._check_underflow(self, ctx)
+            self._underflow = type(self)._check_underflow(self, ctx) and self._inexact
         else:
             if kwargs:
                 raise ValueError('cannot specify additional values {}'.format(repr(kwargs)))
@@ -155,7 +159,7 @@ class Float(mpnum.MPNum):
                 result = cls(negative=unrounded.negative, isinf=True, inexact=True, ctx=ctx)
                 result._invalid = False
                 result._divzero = False
-                result._overflow = overflow
+                result._overflow = True
                 result._underflow = False
                 return result
             else:
@@ -163,7 +167,8 @@ class Float(mpnum.MPNum):
                 result = cls(negative=unrounded.negative, x=ctx.maxnorm, inexact=True, ctx=ctx)
                 result._invalid = False
                 result._divzero = False
-                result._overflow = overflow
+                result._overflow = True
+                result._underflow = False
                 return result
 
         # check for underflow
@@ -174,7 +179,7 @@ class Float(mpnum.MPNum):
         result._invalid = False
         result._divzero = False
         result._overflow = overflow
-        result._underflow = underflow
+        result._underflow = underflow and result._inexact
         return result
 
     # overflow and underflow
@@ -182,26 +187,28 @@ class Float(mpnum.MPNum):
     @classmethod
     def _check_overflow(cls, unrounded: digital.Digital, ctx: IEEECtx):
         magnitude = digital.Digital(x=unrounded, negative=False)
-        if magnitude.compareto_exact(ctx.maxnorm) <= 0:
+        cmp_maxnorm = magnitude.compareto_exact(ctx.maxnorm)
+        if cmp_maxnorm is None or cmp_maxnorm <= 0:
             return False, False
 
         nearest, mode = cls._rounding_modes[(unrounded._negative, ctx.rm)]
         if nearest:
             overflow = magnitude.compareto_exact(ctx.maxbound) >= 0
-            round = True
+            round_away = True
         elif mode == digital.RoundingMode.TOWARD_ZERO:
             overflow = magnitude.compareto_exact(ctx.infval) >= 0
-            round = False
+            round_away = False
         else:   #    digital.RoundingMode.AWAY_ZERO
             overflow = True
-            round = True
+            round_away = True
 
-        return overflow, round
+        return overflow, round_away
 
     @classmethod
     def _check_underflow(cls, unrounded: digital.Digital, ctx: IEEECtx):
         magnitude = digital.Digital(x=unrounded, negative=False)
-        if magnitude.compareto_exact(ctx.minnorm) >= 0:
+        cmp_minnorm = magnitude.compareto_exact(ctx.minnorm)
+        if cmp_minnorm is None or cmp_minnorm >= 0:
             return False
 
         nearest, mode = cls._rounding_modes[(unrounded._negative, ctx.rm)]
@@ -233,19 +240,30 @@ class Float(mpnum.MPNum):
     def compute(self, fn, *args, ctx=ctx):
         try:
             result = fn(*args, ctx=ctx)
-            result.set_divzero(*args)
+            result.set_divzero(self, *args)
         except gmpmath.OverflowResultError as err:
-            ctx = self._select_context(self, ctx=ctx)
+            ctx = type(self)._select_context(*args, ctx=ctx)
             result = Float(isinf=True, inexact=True, negative=err.sign, ctx=ctx)
         except gmpmath.UnderflowResultError as err:
+            ctx = type(self)._select_context(*args, ctx=ctx)
             result = Float(c=0, exp=0, inexact=True, negative=err.sign, ctx=ctx)
         return result
 
     def add(self, other, ctx=None):
-        return self.compute(super().add, other, ctx=ctx)
+        result = self.compute(super().add, other, ctx=ctx)
+        if not result.inexact and result.is_finite_real() and result.is_zero() and self.negative != other.negative:
+            # IEEE-754 standard says x + -x = -0 for RTN and +0 otherwise
+            ctx = type(self)._select_context(self, other, ctx=ctx)
+            result = type(self)(x=result, negative=(ctx.rm == RM.RTN))
+        return result
 
     def sub(self, other, ctx=None):
-        return self.compute(super().su, other, ctx=ctx)
+        result = self.compute(super().sub, other, ctx=ctx)
+        if not result.inexact and result.is_finite_real() and result.is_zero() and self.negative == other.negative:
+            # IEEE-754 standard says x - x = -0 for RTN and +0 otherwise
+            ctx = type(self)._select_context(self, other, ctx=ctx)
+            result = type(self)(x=result, negative=(ctx.rm == RM.RTN))
+        return result
 
     def mul(self, other, ctx=None):
         return self.compute(super().mul, other, ctx=ctx)
@@ -257,7 +275,13 @@ class Float(mpnum.MPNum):
         return self.compute(super().sqrt, ctx=ctx)
 
     def fma(self, other1, other2, ctx=None):
-        return self.compute(super().fma, other1, other2, ctx=ctx)
+        result = self.compute(super().fma, other1, other2, ctx=ctx)
+        mul_sign = self.negative != other1.negative
+        if not result.inexact and result.is_finite_real() and result.is_zero() and mul_sign != other2.sign:
+            # IEEE-754 standard says x + -x = -0 for RTN and +0 otherwise
+            ctx = type(self)._select_context(self, other1, other2, ctx=ctx)
+            result = type(self)(x=result, negative=(ctx.rm == RM.RTN))
+        return result
 
     def neg(self, ctx=None):
         return self.compute(super().neg, ctx=ctx)
@@ -515,17 +539,177 @@ def show_bitpattern(x, ctx=None):
         ctx.es + ctx.p, ctx.es, ctx.p, S, E, hidden, C,
     )
 
+#
+#   Testing
+#
 
-# import numpy as np
-# import sys
-# def bits_to_numpy(i, nbytes=8, dtype=np.float64):
-#     return np.frombuffer(
-#         i.to_bytes(nbytes, sys.byteorder),
-#         dtype=dtype, count=1, offset=0,
-#     )[0]
+fl_ops = [
+    Float.add,
+    Float.sub,
+    Float.mul,
+    Float.div,
+    Float.neg,
+    Float.sqrt,
+    Float.fma,
+    Float.copysign,
+    Float.fabs,
+    Float.fdim,
+    Float.fmax,
+    Float.fmin,
+    Float.fmod,
+    Float.remainder,
+    Float.ceil,
+    Float.floor,
+    Float.nearbyint,
+    Float.round,
+    Float.trunc,
+    Float.acos,
+    Float.acosh,
+    Float.asin,
+    Float.asinh,
+    Float.atan,
+    Float.atan2,
+    Float.atanh,
+    Float.cos,
+    Float.cosh,
+    Float.sin,
+    Float.sinh,
+    Float.tan,
+    Float.tanh,
+    Float.exp_,
+    Float.exp2,
+    Float.expm1,
+    Float.log,
+    Float.log10,
+    Float.log1p,
+    Float.log2,
+    Float.cbrt,
+    Float.hypot,
+    Float.pow,
+    Float.erf,
+    Float.erfc,
+    Float.lgamma,
+    Float.tgamma,
+]
 
-def test():
-    try:
-        Float(1e200).exp_()
-    except gmpmath.gmp.OverflowResultError as err:
-        print(repr(err), err.args)
+gmp_rms = {
+    RM.RNE: gmp.RoundToNearest,
+    RM.RTP: gmp.RoundUp,
+    RM.RTN: gmp.RoundDown,
+    RM.RTZ: gmp.RoundToZero,
+    RM.RAZ: gmp.RoundAwayZero
+}
+
+def mpfr_compute(fn, *args, ctx: IEEECtx):
+    with gmp.context(
+            precision=ctx.p,
+            emin=ctx.emin-ctx.p+2,
+            emax=ctx.emax+1,
+            subnormalize=True,
+            trap_underflow=False,
+            trap_overflow=False,
+            trap_inexact=False,
+            trap_invalid=False,
+            trap_erange=False,
+            trap_divzero=False,
+            round=gmp_rms[ctx.rm],
+    ) as gmpctx:
+        result = fn(*args)
+        invalid = gmpctx.invalid
+        divzero = gmpctx.divzero
+        overflow = gmpctx.overflow
+        underflow = gmpctx.underflow
+        inexact = gmpctx.inexact
+
+        # underflow should only be raised with inexact
+        if underflow and not inexact:
+            underflow = False
+
+        # overflow
+        # if gmpctx.overflow:
+        #     result = gmp.inf(gmp.sign(result))
+
+    return result, IEEEFlags(invalid, divzero, overflow, underflow, inexact)
+
+def check_equality(x, y):
+    xf, xflags = x
+    yf, yflags = y
+
+    xnan = xf.is_nan()
+    ynan = yf.is_nan()
+    if xnan != ynan:
+        return False
+
+    if xflags.divzero != yflags.divzero or \
+       xflags.overflow != yflags.overflow or \
+       xflags.underflow != yflags.underflow or \
+       xflags.inexact != yflags.inexact or \
+       xflags.invalid != yflags.invalid:
+       return False
+
+    return xnan and ynan or (gmp.is_signed(xf) == gmp.is_signed(yf) and xf == yf)
+    
+
+def test_exhaustive_1ary(op, es, nbits, rm):
+    pass
+
+def test_exhaustive_2ary(op, es, nbits, rm):
+    ctx = ieee_ctx(es, nbits, rm)
+    fl_fn = fl_ops[op]
+    mpfr_fn = gmpmath.gmp_ops[op]
+    for i in range(2 ** nbits):
+        x = bits_to_digital(i, ctx)
+        for j in range(2 ** nbits):
+            y = bits_to_digital(j, ctx)
+            # translate to MPFR
+            xgmp = gmpmath.digital_to_mpfr(x)
+            ygmp = gmpmath.digital_to_mpfr(y)
+            # compute
+            rf = fl_fn(x, y, ctx=ctx)
+            r, flags = gmpmath.digital_to_mpfr(rf), rf.get_flags()
+            rgmp, flagsgmp = mpfr_compute(mpfr_fn, xgmp, ygmp, ctx=ctx)
+            # check equality
+            if not check_equality((r, flags), (rgmp, flagsgmp)):
+                inputs = (xgmp, ygmp)
+                expected = (rgmp, flagsgmp.invalid, flagsgmp.divzero, flagsgmp.overflow, flagsgmp.underflow, flagsgmp.inexact)
+                actual = (r, flags.invalid, flags.divzero, flags.overflow, flags.underflow, flags.inexact)
+                print(' inputs={}, expected={}, actual={}'.format(inputs, expected, actual))
+
+
+def test_exhaustive_3ary(op, es, nbits, rm):
+    pass
+
+def test_exhaustive_thread(config):
+    op, es, nbits, rm = config
+    argc = len(getargspec(fl_ops[op]).args) - 1
+    print('test={}, es={}, nbits={}, rm={}'.format(repr(op), es, nbits, repr(rm)))
+
+    if argc == 1:
+        test_exhaustive_1ary(op, es, nbits, rm)
+    elif argc == 2:
+        test_exhaustive_2ary(op, es, nbits, rm)
+    elif argc == 3:
+        test_exhaustive_3ary(op, es, nbits, rm)
+    else:
+        raise ValueError('unexpected argument count: {}'.format(argc))
+
+def test_exhaustive(es_min=2, nbits_min=4, es_max=8, nbits_max=10, threads=None):
+    ops = [OP.add, OP.sub, OP.mul, OP.div]
+    rms = [RM.RNE, RM.RTP, RM.RTN, RM.RTZ, RM.RAZ]
+
+    configs = [] 
+    for es in range(es_min, es_max + 1):
+        for nbits in range(max(nbits_min, es + 2), nbits_max + 1):
+            for op in ops:
+                for rm in rms:
+                    configs.append((op, es, nbits, rm))
+
+    if threads is not None:
+        with mp.Pool(processes=threads) as pool:
+            pool.map(test_exhaustive_thread, configs)
+    else:
+        for config in configs:
+            test_exhaustive_thread(config)
+
+def test(threads=None):
+    test_exhaustive(threads=threads)
