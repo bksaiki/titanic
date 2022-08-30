@@ -36,7 +36,7 @@ class IEEEFlags(object):
         self.inexact = inexact
 
     def __repr__(self):
-        return '{}(invalid={}, divzero={}, overflow={}, underflow={}, inexact={}'.format(
+        return '{}(invalid={}, divzero={}, overflow={}, underflow={}, inexact={})'.format(
             type(self).__name__, self.invalid, self.divzero, self.overflow, self.underflow, self.inexact
         )
 
@@ -78,10 +78,10 @@ class Float(mpnum.MPNum):
 
         if x is None or isinstance(x, digital.Digital):
             super().__init__(x=x, **kwargs)
-            self._invalid = False
+            self._invalid = self._divzero
             self._divzero = False
-            self._overflow = False
-            self._underflow = False
+            self._overflow = self._isinf and self._inexact
+            self._underflow = type(self)._check_underflow(self, ctx)
         else:
             if kwargs:
                 raise ValueError('cannot specify additional values {}'.format(repr(kwargs)))
@@ -181,7 +181,7 @@ class Float(mpnum.MPNum):
 
     @classmethod
     def _check_overflow(cls, unrounded: digital.Digital, ctx: IEEECtx):
-        magnitude = cls(unrounded, negative=False)
+        magnitude = digital.Digital(x=unrounded, negative=False)
         if magnitude.compareto_exact(ctx.maxnorm) <= 0:
             return False, False
 
@@ -200,7 +200,7 @@ class Float(mpnum.MPNum):
 
     @classmethod
     def _check_underflow(cls, unrounded: digital.Digital, ctx: IEEECtx):
-        magnitude = cls(unrounded, negative=False)
+        magnitude = digital.Digital(x=unrounded, negative=False)
         if magnitude.compareto_exact(ctx.minnorm) >= 0:
             return False
 
@@ -214,6 +214,9 @@ class Float(mpnum.MPNum):
 
     # status flags
 
+    def set_divzero(self, *args):
+        self._divzero = self._isinf and not self._inexact and all(map(lambda x : x.is_finite_real(), args))
+
     def get_flags(self):
         return IEEEFlags(self._invalid, self._divzero, self._overflow, self._underflow, self._inexact)
 
@@ -226,6 +229,149 @@ class Float(mpnum.MPNum):
             or self.isnan
             or self.e < self.ctx.emin
         )
+
+    def compute(self, fn, *args, ctx=ctx):
+        try:
+            result = fn(*args, ctx=ctx)
+            result.set_divzero(*args)
+        except gmpmath.OverflowResultError as err:
+            ctx = self._select_context(self, ctx=ctx)
+            result = Float(isinf=True, inexact=True, negative=err.sign, ctx=ctx)
+        except gmpmath.UnderflowResultError as err:
+            result = Float(c=0, exp=0, inexact=True, negative=err.sign, ctx=ctx)
+        return result
+
+    def add(self, other, ctx=None):
+        return self.compute(super().add, other, ctx=ctx)
+
+    def sub(self, other, ctx=None):
+        return self.compute(super().su, other, ctx=ctx)
+
+    def mul(self, other, ctx=None):
+        return self.compute(super().mul, other, ctx=ctx)
+
+    def div(self, other, ctx=None):
+        return self.compute(super().div, other, ctx=ctx)
+
+    def sqrt(self, ctx=None):
+        return self.compute(super().sqrt, ctx=ctx)
+
+    def fma(self, other1, other2, ctx=None):
+        return self.compute(super().fma, other1, other2, ctx=ctx)
+
+    def neg(self, ctx=None):
+        return self.compute(super().neg, ctx=ctx)
+
+    def copysign(self, other, ctx=None):
+        return self.compute(super().copysign, other, ctx=ctx)
+
+    def fabs(self, ctx=None):
+        return self.compute(super().fabs, ctx=ctx)
+
+    def fdim(self, other, ctx=None):
+        return self.compute(super().fdim, other, ctx=ctx)
+
+    def fmax(self, other, ctx=None):
+        return self.compute(super().fmax, other, ctx=ctx)
+
+    def fmin(self, other, ctx=None):
+        return self.compute(super().fmin, other, ctx=ctx)
+
+    def fmod(self, other, ctx=None):
+        return self.compute(super().fmod, other, ctx=ctx)
+
+    def remainder(self, other, ctx=None):
+        return self.compute(super().remainder, other, ctx=ctx)
+
+    def ceil(self, ctx=None):
+        return self.compute(super().ceil, ctx=ctx)
+
+    def floor(self, ctx=None):
+        return self.compute(super().floor, ctx=ctx)
+
+    def nearbyint(self, ctx=None):
+        return self.compute(super().nearbyint, ctx=ctx)
+
+    def round(self, ctx=None):
+        return self.compute(super().round, ctx=ctx)
+
+    def trunc(self, ctx=None):
+        return self.compute(super().trunc, ctx=ctx)
+
+    def acos(self, ctx=None):
+        return self.compute(super().acos, ctx=ctx)
+
+    def acosh(self, ctx=None):
+        return self.compute(super().acosh, ctx=ctx)
+
+    def atan(self, ctx=None):
+        return self.compute(super().atan, ctx=ctx)
+
+    def atan2(self, other, ctx=None):
+        return self.compute(super().atan2, other, ctx=ctx)
+
+    def atanh(self, ctx=None):
+        return self.compute(super().atan2, ctx=ctx)
+
+    def cos(self, ctx=None):
+        return self.compute(super().cos, ctx=ctx)
+
+    def cosh(self, ctx=None):
+        return self.compute(super().cosh, ctx=ctx)
+
+    def sin(self, ctx=None):
+        return self.compute(super().sin, ctx=ctx)
+
+    def sinh(self, ctx=None):
+        return self.compute(super().sinh, ctx=ctx)
+
+    def tan(self, ctx=None):
+        return self.compute(super().tan, ctx=ctx)
+
+    def tanh(self, ctx=None):
+        return self.compute(super().tanh, ctx=ctx)
+
+    def exp_(self, ctx=None):
+        return self.compute(super().exp_, ctx=ctx)
+
+    def exp2(self, ctx=None):
+        return self.compute(super().exp2, ctx=ctx)
+
+    def expm1(self, ctx=None):
+        return self.compute(super().expm1, ctx=ctx)
+
+    def log(self, ctx=None):
+        return self.compute(super().log, ctx=ctx)
+
+    def log10(self, ctx=None):
+        return self.compute(super().log10, ctx=ctx)
+
+    def log1p(self, ctx=None):
+        return self.compute(super().log1p, ctx=ctx)
+
+    def log2(self, ctx=None):
+        return self.compute(super().log2, ctx=ctx)
+
+    def cbrt(self, ctx=None):
+        return self.compute(super().cbrt, ctx=ctx)
+
+    def hypot(self, other, ctx=None):
+        return self.compute(super().hypot, other, ctx=ctx)
+
+    def pow(self, other, ctx=None):
+        return self.compute(super().pow, other, ctx=ctx)
+
+    def erf(self, ctx=None):
+        return self.compute(super().erf, ctx=ctx)
+
+    def erfc(self, ctx=None):
+        return self.compute(super().erfc, ctx=ctx)
+
+    def lgamma(self, ctx=None):
+        return self.compute(super().lgamma, ctx=ctx)
+
+    def tgamma(self, ctx=None):
+        return self.compute(super().tgamma, ctx=ctx)
 
 
 class Interpreter(interpreter.StandardInterpreter):
@@ -262,6 +408,9 @@ class Interpreter(interpreter.StandardInterpreter):
         """Not actually used?"""
         return self.dtype._round_to_context(x, ctx=ctx, strict=False)
 
+    def _eval_exp(self, e, ctx):
+        in0 = self.evaluate(e.children[0], ctx)
+        return [in0], in0.exp_(ctx=ctx)
 
 
 def digital_to_bits(x, ctx=None):
