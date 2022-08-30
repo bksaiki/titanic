@@ -431,6 +431,30 @@ class Digital(object):
         else:
             return 1
 
+    def compareto_exact(self, other):
+        """Like `compareto`, but `other` must be exact. Breaks ties based off of previous
+        rounding direction."""
+        if other.inexact:
+            raise ValueError('Must compare against an exact Digital type')
+
+        cmp = self.compareto(other, False)
+        if cmp is None or cmp != 0:
+            # clear choice
+            return cmp
+        elif not self._inexact:
+            # exact comparison
+            return 0
+        elif self._interval_down:
+            if self._negative:
+                return 1
+            else:
+                return -1
+        else:
+            if self._negative:
+                return -1
+            else:
+                return 1
+
     def __lt__(self, other):
         order = self.compareto(other)
         return order is not None and order < 0

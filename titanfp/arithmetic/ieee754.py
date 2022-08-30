@@ -20,10 +20,41 @@ def ieee_ctx(es, nbits, rm=RM.RNE):
         used_ctxs[(es, nbits, rm)] = ctx
         return ctx
 
+class IEEEFlags(object):
+    """Status flags defined by IEEE-754"""
+    invalid: bool = False
+    divzero: bool = False
+    overflow: bool = False
+    underflow: bool = False
+    inexact: bool = False
+
+    def __init__(self, invalid, divzero, overflow, underflow, inexact):
+        self.invalid = invalid
+        self.divzero = divzero
+        self.overflow = overflow
+        self.underflow = underflow
+        self.inexact = inexact
+
+    def __repr__(self):
+        return '{}(invalid={}, divzero={}, overflow={}, underflow={}, inexact={}'.format(
+            type(self).__name__, self.invalid, self.divzero, self.overflow, self.underflow, self.inexact
+        )
+
 
 class Float(mpnum.MPNum):
+    """IEEE-754 floating point type"""
 
+    # rounding context at construction
     _ctx : IEEECtx = ieee_ctx(11, 64)
+
+    # IEEE-754 required flags
+    _invalid: bool = False      # real result was undefined => NaN
+    _divzero: bool = False      # pole with well-defined limit => +/-Inf
+    _overflow: bool = False     # magnitude was too large 
+    _underflow: bool = False    # magnitude was too small
+
+    # (already defined in Digital)
+    # _inexact: bool = False
 
     @property
     def ctx(self):
@@ -47,12 +78,21 @@ class Float(mpnum.MPNum):
 
         if x is None or isinstance(x, digital.Digital):
             super().__init__(x=x, **kwargs)
+            self._invalid = False
+            self._divzero = False
+            self._overflow = False
+            self._underflow = False
         else:
             if kwargs:
                 raise ValueError('cannot specify additional values {}'.format(repr(kwargs)))
-            f = gmpmath.mpfr(x, ctx.p)
-            unrounded = gmpmath.mpfr_to_digital(f)
-            super().__init__(x=self._round_to_context(unrounded, ctx=ctx, strict=True))
+            unrounded = gmpmath.mpfr_to_digital(gmpmath.mpfr(x, ctx.p))
+            rounded = self._round_to_context(unrounded, ctx=ctx, strict=True)
+            super().__init__(x=rounded)
+            self._invalid = rounded._invalid
+            self._divzero = rounded._divzero
+            self._overflow = rounded._overflow
+            self._underflow = rounded._underflow
+            
 
         self._ctx = ieee_ctx(ctx.es, ctx.nbits, rm=ctx.rm)
 
@@ -88,42 +128,94 @@ class Float(mpnum.MPNum):
             else:
                 raise ValueError('no context specified to round {}'.format(repr(unrounded)))
 
-        if unrounded.isinf or unrounded.isnan:
-            return cls(unrounded, ctx=ctx)
-        magnitude = cls(unrounded, negative=False)
+        # NaN
+        if unrounded.isnan:
+            result = cls(unrounded, ctx=ctx)
+            result._invalid = True
+            result._divzero = False
+            result._overflow = False
+            result._underflow = False
+            return result
 
-        # check against maxbound
-        if magnitude > ctx.maxbound or (magnitude == ctx.maxbound and magnitude.rc >= 0):
-            if ctx.rm == RM.RTZ:
-                return cls(negative=unrounded.negative, x=ctx.fmax, ctx=ctx)
-            elif ctx.rm == RM.RTP:
-                if unrounded.negative:
-                    return cls(negative=unrounded.negative, x=ctx.fmax, ctx=ctx)
-                else:
-                    return cls(negative=unrounded.negative, isinf=True, ctx=ctx)
-            elif ctx.rm == RM.RTN:
-                if unrounded.negative:
-                    return cls(negative=unrounded.negative, isinf=True, ctx=ctx)
-                else:
-                    return cls(negative=unrounded.negative, x=ctx.fmax, ctx=ctx)
+        # Inf
+        if unrounded.isinf:
+            # TODO: how to set _divzero ???
+            result = cls(unrounded, ctx=ctx)
+            result._invalid = False
+            result._divzero = False
+            result._overflow = unrounded._inexact
+            result._underflow = False
+            return result
+
+        # check for overflow
+        overflow, round_away = cls._check_overflow(unrounded, ctx)
+        if overflow:
+            if round_away:
+                # round to infinity
+                result = cls(negative=unrounded.negative, isinf=True, inexact=True, ctx=ctx)
+                result._invalid = False
+                result._divzero = False
+                result._overflow = overflow
+                result._underflow = False
+                return result
             else:
-                return cls(negative=unrounded.negative, isinf=True, ctx=ctx)
+                # clamp to maxval
+                result = cls(negative=unrounded.negative, x=ctx.maxnorm, inexact=True, ctx=ctx)
+                result._invalid = False
+                result._divzero = False
+                result._overflow = overflow
+                return result
 
-        # check against fmax
-        if magnitude > ctx.fmax or (magnitude == ctx.fmax and magnitude.rc > 0):
-            if ctx.rm == RM.RTP:
-                if unrounded.negative:
-                    return cls(negative=unrounded.negative, x=ctx.fmax, ctx=ctx)
-                else:
-                    return cls(negative=unrounded.negative, isinf=True, ctx=ctx)
-            elif ctx.rm == RM.RTN:
-                if unrounded.negative:
-                    return cls(negative=unrounded.negative, isinf=True, ctx=ctx)
-                else:
-                    return cls(negative=unrounded.negative, x=ctx.fmax, ctx=ctx)
+        # check for underflow
+        underflow = cls._check_underflow(unrounded, ctx)
 
         # normal
-        return cls(unrounded.round_new(max_p=ctx.p, min_n=ctx.n, rm=ctx.rm, strict=strict), ctx=ctx)
+        result = cls(unrounded.round_new(max_p=ctx.p, min_n=ctx.n, rm=ctx.rm, strict=strict), ctx=ctx)
+        result._invalid = False
+        result._divzero = False
+        result._overflow = overflow
+        result._underflow = underflow
+        return result
+
+    # overflow and underflow
+
+    @classmethod
+    def _check_overflow(cls, unrounded: digital.Digital, ctx: IEEECtx):
+        magnitude = cls(unrounded, negative=False)
+        if magnitude.compareto_exact(ctx.maxnorm) <= 0:
+            return False, False
+
+        nearest, mode = cls._rounding_modes[(unrounded._negative, ctx.rm)]
+        if nearest:
+            overflow = magnitude.compareto_exact(ctx.maxbound) >= 0
+            round = True
+        elif mode == digital.RoundingMode.TOWARD_ZERO:
+            overflow = magnitude.compareto_exact(ctx.infval) >= 0
+            round = False
+        else:   #    digital.RoundingMode.AWAY_ZERO
+            overflow = True
+            round = True
+
+        return overflow, round
+
+    @classmethod
+    def _check_underflow(cls, unrounded: digital.Digital, ctx: IEEECtx):
+        magnitude = cls(unrounded, negative=False)
+        if magnitude.compareto_exact(ctx.minnorm) >= 0:
+            return False
+
+        nearest, mode = cls._rounding_modes[(unrounded._negative, ctx.rm)]
+        if nearest:
+            return magnitude.compareto_exact(ctx.subbound) < 0
+        elif mode == digital.RoundingMode.TOWARD_ZERO:
+            return True
+        else:   #    digital.RoundingMode.AWAY_ZERO
+            return magnitude.compareto_exact(ctx.tinyval) <= 0
+
+    # status flags
+
+    def get_flags(self):
+        return IEEEFlags(self._invalid, self._divzero, self._overflow, self._underflow, self._inexact)
 
     # most operations come from mpnum
 
