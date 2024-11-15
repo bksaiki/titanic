@@ -8,7 +8,7 @@ keyring
 numpy
 gmpy2
 
-# antlr
+# parsers
 antlr4-python3-runtime ~= 4.9.3
 
 # softfloat libs
@@ -26,3 +26,7 @@ scikit-image
 adjustText
 graphviz
 jupyter
+
+# static analysis
+mypy
+ruff
