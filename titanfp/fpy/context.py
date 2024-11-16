@@ -4,7 +4,7 @@ from typing import Any, Optional, Self
 
 from .utils import raise_type_error
 
-def get_context():
+def current_context():
     """Returns the current global rounding context."""
     return _current_context
 
@@ -57,7 +57,7 @@ class RoundingContext(object):
 
     def __enter__(self):
         global _current_context
-        self._prev = get_context()
+        self._prev = _current_context
         _current_context = self
         return self
     
