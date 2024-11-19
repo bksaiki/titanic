@@ -1,6 +1,5 @@
 """Defines the `@fpcore` decorator for FPy functions."""
 
-import ast
 import inspect
 
 from inspect import Parameter

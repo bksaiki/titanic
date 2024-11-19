@@ -8,78 +8,77 @@ from ..titanic.digital import Digital
 
 from .utils import raise_type_error
 
-class Ast(ABC):
-    """Abstract base class for FPY AST nodes."""
-
-    def __add__(self, other):
-        return Add(self, other)
+class Expr(ABC):
+    """Abstract base class for FPy AST nodes."""
+    # def __add__(self, other):
+    #     return Add(self, other)
     
-    def __sub__(self, other):
-        return Sub(self, other)
+    # def __sub__(self, other):
+    #     return Sub(self, other)
     
-    def __mul__(self, other):
-        return Mul(self, other)
+    # def __mul__(self, other):
+    #     return Mul(self, other)
     
-    def __div__(self, other):
-        return Div(self, other)
-    
-    def __le__(self, other):
-        return LessEqual(self, other)
-    
-    def __bool__(self):
-        raise RuntimeError('implicit conversion to bool not allowed')
-
-
-_Bool = bool | str | Ast
-_Real = int | float | Digital | str | Ast
-_Scalar = _Bool | _Real
+    # def __div__(self, other):
+    #     return Div(self, other)
 
 @dataclass
-class Bool(Ast):
-    """FPY node: boolean constant"""
-    val: _Bool
+class Real(Expr):
+    """FPy node: numerical constant"""
+    val: int | float | Digital
 
-@dataclass
-class Real(Ast):
-    """FPY node: numerical constant"""
-    val: _Real
+# class ControlExpr()
 
-@dataclass
-class Add(Ast):
-    lhs: Ast
-    rhs: Ast
+# _Bool = bool | str | Ast
+# _Real = int | float | Digital | str | Ast
+# _Scalar = _Bool | _Real
 
-@dataclass
-class Sub(Ast):
-    lhs: Ast
-    rhs: Ast
+# @dataclass
+# class Bool(Ast):
+#     """FPY node: boolean constant"""
+#     val: _Bool
 
-@dataclass
-class Mul(Ast):
-    lhs: Ast
-    rhs: Ast
+# @dataclass
+# class Real(Ast):
+#     """FPY node: numerical constant"""
+#     val: _Real
 
-@dataclass
-class Div(Ast):
-    lhs: Ast
-    rhs: Ast
+# @dataclass
+# class Add(Ast):
+#     lhs: Ast
+#     rhs: Ast
 
-@dataclass
-class Sqrt(Ast):
-    arg: Ast
+# @dataclass
+# class Sub(Ast):
+#     lhs: Ast
+#     rhs: Ast
 
-@dataclass
-class LessEqual(Ast):
-    lhs: Ast
-    rhs: Ast
+# @dataclass
+# class Mul(Ast):
+#     lhs: Ast
+#     rhs: Ast
 
-@dataclass
-class If(Ast):
-    cond: Ast
-    ift: Ast
-    iff: Ast
+# @dataclass
+# class Div(Ast):
+#     lhs: Ast
+#     rhs: Ast
 
-class FPCore(Ast):
+# @dataclass
+# class Sqrt(Ast):
+#     arg: Ast
+
+# @dataclass
+# class LessEqual(Ast):
+#     lhs: Ast
+#     rhs: Ast
+
+# @dataclass
+# class If(Ast):
+#     cond: Ast
+#     ift: Ast
+#     iff: Ast
+
+class FPCore(Expr):
     """FPY node: function"""
     func: Callable[..., Any]
     arg_types: dict[str, type]
