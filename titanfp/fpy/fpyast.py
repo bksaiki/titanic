@@ -6,12 +6,13 @@ from typing import Optional
 class Ast(ABC):
     """Abstract base class for FPy AST nodes."""
 
+    def __repr__(self):
+        name = self.__class__.__name__
+        items = ', '.join(f'{k}={repr(v)}' for k, v in self.__dict__.items())
+        return f'{name}({items})'
+
 class TypeAnn(Ast):
     """FPy node: type annotation"""
-    name: str
-
-    def __init__(self, name: str):
-        self.name = name
 
 class AnyType(TypeAnn):
     """FPy node: type annotation"""
@@ -37,17 +38,23 @@ class Real(Expr):
     val: str | int | float
 
     def __init__(self, val: str | int | float):
-        super().__init__()
         self.val = val
+
+class Var(Expr):
+    """FPy node: variable"""
+    name: str
+
+    def __init__(self, name: str):
+        self.name = name
 
 class NaryExpr(Expr):
     """FPy node: application expression"""
     name: str
-    children: tuple[Expr, ...]
+    children: list[Expr]
 
     def __init__(self, name: str, *children: Expr) -> None:
         self.name = name
-        self.children = children
+        self.children = list(children)
 
 class UnknownCall(NaryExpr):
     """FPy node: abstract application"""
@@ -55,14 +62,17 @@ class UnknownCall(NaryExpr):
 class UnaryExpr(NaryExpr):
     """FPy node: abstract unary application"""
 
-    def __init__(self, name: str, e: Expr):
-        super().__init__(name, e)
-
 class Neg(UnaryExpr):
     """FPy node: subtraction expression"""
     
     def __init__(self, e: Expr):
         super().__init__('-', e)
+
+class Fabs(UnaryExpr):
+    """FPy node: absolute value expression"""
+    
+    def __init__(self, e: Expr):
+        super().__init__('fabs', e)
 
 class Sqrt(UnaryExpr):
     """FPy node: square-root expression"""
@@ -72,9 +82,6 @@ class Sqrt(UnaryExpr):
 
 class BinaryExpr(NaryExpr):
     """FPy node: abstract ternary application"""
-    
-    def __init__(self, name: str, e1: Expr, e2: Expr):
-        super().__init__(name, e1, e2)
 
 class Add(BinaryExpr):
     """FPy node: subtraction expression"""
@@ -103,6 +110,13 @@ class Div(BinaryExpr):
 class Stmt(Ast):
     """FPy node: abstract statement"""
 
+class Block(Stmt):
+    """FPy node: list of statements"""
+    stmts: list[Stmt]
+
+    def __init__(self, stmts: list[Stmt]):
+        self.stmts = stmts
+
 class Assign(Stmt):
     """FPy node: assignment"""
     name: str
@@ -110,7 +124,6 @@ class Assign(Stmt):
     ann: Optional[TypeAnn]
 
     def __init__(self, name: str, val: Expr, ann: Optional[TypeAnn] = None):
-        super().__init__()
         self.name = name
         self.val = val
         self.ann = ann
@@ -120,13 +133,12 @@ class Return(Stmt):
     e: Expr
 
     def __init__(self, e: Expr):
-        super().__init__()
         self.e = e
 
 class Function(Ast):
     """FPy node: function"""
     name: str
-    body: list[Stmt]
+    body: Stmt
 
     def __init__(self, name: str, body: list[Stmt]):
         self.name = name
