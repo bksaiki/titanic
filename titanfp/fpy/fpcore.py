@@ -41,7 +41,7 @@ def _compile_expr(e: Expr):
             raise NotImplementedError(e)
         case Var(name=name):
             return fpc.Var(name)
-        case Real(val=val):
+        case Num(val=val):
             if isinstance(val, int):
                 return fpc.Integer(val)
             else:

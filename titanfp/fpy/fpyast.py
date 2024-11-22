@@ -35,7 +35,7 @@ class Argument(Ast):
 class Expr(Ast):
     """FPy node: abstract expression"""
 
-class Real(Expr):
+class Num(Expr):
     """FPy node: numerical constant"""
     val: str | int | float
 

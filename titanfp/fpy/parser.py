@@ -88,8 +88,8 @@ def _parse_expr(e: ast.expr):
                     raise NotImplementedError('call', name)
         case ast.Constant(value=v):
             match v:
-                case int():
-                    return Real(v)
+                case int() | float():
+                    return Num(v)
                 case _:
                     raise FPyParserError(f'Unsupported constant: {e}') 
         case ast.Name(id=id):
@@ -165,7 +165,7 @@ def fpcore(*args, **kwargs):
     """
     def wrap(func):
         if not callable(func):
-            raise_type_error(function, func)
+            raise_type_error(Callable, func)
 
         # re-parse the function and translate it to FPy
         source = inspect.getsource(func)
