@@ -23,15 +23,12 @@ def _parse_assign_lhs(target: ast.expr, st: ast.stmt):
         case _:
             raise FPyParserError(f'FPy expects an identifier {target} in {st}')
 
-def _parse_annotation(ann: ast.expr, st: ast.stmt):
+def _parse_annotation(ann: ast.expr, st: ast.AST):
     match ann:
         case ast.Name('Real'):
             return RealType()
         case _:
             raise FPyParserError(f'Unsupported FPy type annotation {ann} in {st}')
-            
-    print(ann)
-    pass
 
 def _parse_unaryop(e: ast.UnaryOp):
     match e.op:
@@ -107,7 +104,7 @@ def _parse_statement(st: ast.stmt) -> Stmt:
                 raise FPyParserError(f'Assignment must have a value: {st}')
             name = _parse_assign_lhs(target, st)
             ty_ann = _parse_annotation(ann, st)
-            return Assign(name, ty_ann, _parse_expr(value))
+            return Assign(name, _parse_expr(value), ty_ann)
         case ast.Assign(targets=targets, value=value):
             match targets:
                 case [t0]:
@@ -135,9 +132,20 @@ def _parse_statements(sts: list[ast.stmt]):
             return Block(stmts)
 
 def _parse_function(tree: ast.FunctionDef)-> Function:
-    block = _parse_statements(tree.body)
-    return Function(name=tree.name, body=block)
+    if tree.args.vararg:
+        raise FPyParserError(f'FPy does not support variary arguments: {tree.args.vararg} in {tree}')
+    if tree.args.kwarg:
+        raise FPyParserError(f'FPy does not support keyword arguments: {tree.args.kwarg} in {tree}')
 
+    args: list[Argument] = []
+    for arg in tree.args.posonlyargs + tree.args.args:
+        if arg.annotation is None:
+            raise FPyParserError(f'FPy requires argument annotations {arg.arg}')
+        ann =  _parse_annotation(arg.annotation, arg)
+        args.append(Argument('_' if arg.arg is None else arg.arg, ann))
+    
+    block = _parse_statements(tree.body)
+    return Function(args, block, ident=tree.name)
 
 def parse_tree(tree: ast.FunctionDef):
     """
@@ -162,13 +170,36 @@ def fpcore(*args, **kwargs):
         # re-parse the function and translate it to FPy
         source = inspect.getsource(func)
         ptree = ast.parse(source).body[0]
-        expr = parse_tree(ptree)
+        assert isinstance(ptree, ast.FunctionDef)
+
+        core = parse_tree(ptree)
+
+        # handle keywords
+        for k in kwargs:
+            if k == 'name':
+                core.name = kwargs[k]
+            elif k == 'pre':
+                decorators = ptree.decorator_list
+                raise NotImplementedError('precondition')
+                # pre = kwargs[k]
+                # if isinstance(pre, Callable):
+                #     source = inspect.getsource(pre).replace('pre=', '')
+                #     print(source)
+                #     ptree = ast.parse(source, mode='eval')
+                #     raise NotImplementedError(ptree)
+                # else:
+                #     raise FPyParserError(f'invalid precondition, expected a function {pre}')
+            else:
+                # TODO: check for structured data
+                pass
+
+        core.ctx = Context(props=kwargs)
 
         # TODO: static analysis:
         #  - unknown variables
         #  - type checking
 
-        return expr
+        return core
 
     match args:
         case []:
