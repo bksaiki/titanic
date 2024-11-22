@@ -8,9 +8,9 @@ from typing import cast, Callable, Type
 from .fpyast import *
 from .utils import raise_type_error
 
-_call_table: dict[str, tuple[int, Callable[..., Expr]]] = {
-    'fabs' : (1, Fabs),
-    'sqrt' : (1, Sqrt)
+_unary_table: dict[str, Callable[[Expr], Expr]] = {
+    'fabs' : Fabs,
+    'sqrt' : Sqrt
 }
 
 class FPyParserError(Exception):
@@ -142,25 +142,48 @@ class FPyParser:
                     raise FPyParserError(self.source, 'FPy does not support keyword arguments', e)
 
                 name = self._parse_call(func, e)
-                match _call_table.get(name, None):
-                    case None:
-                        # not a defined operator
-                        if self.strict:
-                            raise FPyParserError(self.source, 'FPy does not allow foreign calls in strict mode', e, func)
+                if name == 'digits':
+                    # special case: digits
+                    if len(args) != 3:
+                        raise FPyParserError(self.source, f'`digits` expects 3 arguments, given {len(args)}', e)
 
-                        children = list(map(self._parse_expr, args))
-                        return UnknownCall(name, *children)
-                    case (1, cls):
-                        # defined unary operator
-                        if len(args) != 1:
-                            raise FPyParserError(self.source, f'FPy operator {name} expects 1 argument, given {len(args)}', e)
-                        return cls(self._parse_expr(args[0]))
-                    case _:
-                        raise NotImplementedError('call', name)
+                    m = self._parse_expr(args[0])
+                    if not isinstance(m, Integer):
+                        raise FPyParserError(self.source, f'first argument of `digits` must be an integer, given {len(args)}', e)
+
+                    exp = self._parse_expr(args[1])
+                    if not isinstance(exp, Integer):
+                        raise FPyParserError(self.source, f'second argument of `digits` must be an integer', e)
+                
+                    base = self._parse_expr(args[2])
+                    if not isinstance(base, Integer):
+                        raise FPyParserError(self.source, f'third argument of `digits` must be an integer', e)
+                    if base.val < 2:
+                        raise FPyParserError(self.source, f'third argument of `digits` must greater than 1', e)
+
+                    return Digits(m.val, exp.val, base.val)
+                elif name in _unary_table:
+                    # unary operator
+                    if len(args) != 1:
+                        raise FPyParserError(self.source, f'`{name}` expects 1 argument, given {len(args)}', e)
+                    cls = _unary_table[name]
+                    return cls(self._parse_expr(args[0]))
+                else:
+                    # not a defined operator
+                    if self.strict:
+                        raise FPyParserError(self.source, 'FPy does not allow foreign calls in strict mode', e, func)
+
+                    children = list(map(self._parse_expr, args))
+                    return UnknownCall(name, *children)
             case ast.Constant(value=v):
                 match v:
-                    case int() | float():
-                        return Num(v)
+                    case int():
+                        return Integer(v)
+                    case float():
+                        if v.is_integer():
+                            return Integer(int(v))
+                        else:
+                            return Num(v)
                     case _:
                         raise FPyParserError(self.source, 'Unsupported constant', e)
             case ast.Name(id=id):
@@ -173,7 +196,18 @@ class FPyParser:
             case ast.UAdd():
                 return self._parse_expr(e.operand)
             case ast.USub():
-                return Neg(self._parse_expr(e.operand))
+                match self._parse_expr(e.operand):
+                    case Integer(val=val):
+                        return Integer(-val)
+                    case Num(val=val):
+                        if isinstance(val, str):
+                            return Num(f'-{val}')
+                        elif isinstance(val, float):
+                            return Num(-val)
+                        else:
+                            raise NotImplementedError('unary minus', val)
+                    case n:
+                        return Neg(n)
             case _:
                 raise FPyParserError(self.source, 'Not a valid FPy operator', e.op, e)
 
@@ -234,7 +268,6 @@ def fpcore(*args, **kwargs):
         # re-parse the function and translate it to FPy
         source, sourcename = _get_source(func)
         ptree = ast.parse(source).body[0]
-        print(ptree.lineno, ptree.end_lineno)
         assert isinstance(ptree, ast.FunctionDef)
 
         strict = kwargs.get('strict', False)

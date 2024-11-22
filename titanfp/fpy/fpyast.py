@@ -35,19 +35,40 @@ class Argument(Ast):
 class Expr(Ast):
     """FPy node: abstract expression"""
 
-class Num(Expr):
+class ValueExpr(Ast):
+    """FPy node: abstract terminal"""
+
+class Var(ValueExpr):
+    """FPy node: variable"""
+    name: str
+
+    def __init__(self, name: str):
+        self.name = name
+
+class Num(ValueExpr):
     """FPy node: numerical constant"""
     val: str | int | float
 
     def __init__(self, val: str | int | float):
         self.val = val
 
-class Var(Expr):
-    """FPy node: variable"""
-    name: str
+class Integer(Num):
+    """FPy node: numerical constant (integer)"""
+    val: int
 
-    def __init__(self, name: str):
-        self.name = name
+    def __init__(self, val: int):
+        super().__init__(val)
+
+class Digits(ValueExpr):
+    """FPy node: numerical constant in scientific notation"""
+    m: int
+    e: int
+    b: int
+
+    def __init__(self, m: int, e: int, b: int):
+        self.m = m
+        self.e = e
+        self.b = b
 
 class NaryExpr(Expr):
     """FPy node: application expression"""

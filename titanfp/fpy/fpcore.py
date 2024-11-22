@@ -44,13 +44,32 @@ def _compile_expr(e: Expr):
         case Num(val=val):
             if isinstance(val, int):
                 return fpc.Integer(val)
+            elif isinstance(val, float):
+                return fpc.Decnum(str(val))
             else:
                 raise NotImplementedError(e)
+        case Digits(m=m, e=exp, b=base):
+            return fpc.Digits(m, exp, base)
         case _:
             raise NotImplementedError(e)
 
+def _compile_block(block: Block):
+   match block.stmts:
+        case [stmt]:
+            return _compile_statement(stmt)
+        case [stmt, *stmts]:
+            match stmt:
+                case Assign(name=name, val=val):
+                    return fpc.Let([(name, _compile_expr(val))], _compile_block(Block(stmts)))
+                case _:
+                    raise NotImplementedError('unexpected statement', stmt)
+        case _:
+           raise NotImplementedError('unexpected block', block.stmts)
+
 def _compile_statement(stmt: Stmt):
     match stmt:
+        case Block():
+            return _compile_block(stmt)
         case Return(e=expr):
             return _compile_expr(expr)
         case _:

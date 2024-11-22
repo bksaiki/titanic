@@ -1,10 +1,12 @@
+from .fpcore import fpy_to_fpcore
+from .fpyast import Function
 from .parser import fpcore
 from .typing import *
 
-### Sanity testing
+### Simple tests
 
 @fpcore
-def simple1():
+def test_simple1():
     return 0
 
 @fpcore(
@@ -12,7 +14,7 @@ def simple1():
     spec='0.0',
     strict=True
 )
-def simple2():
+def test_simple2():
     return 0
 
 @fpcore(
@@ -20,7 +22,7 @@ def simple2():
     spec='0.0',
     strict=True
 )
-def decnum():
+def test_decnum():
     return 0.0
 
 @fpcore(
@@ -28,7 +30,7 @@ def decnum():
     spec='0.0',
     strict=True
 )
-def digits1():
+def test_digits1():
     return digits(0, 0, 2)
 
 @fpcore(
@@ -36,7 +38,7 @@ def digits1():
     spec='1.0',
     strict=True
 )
-def digits2():
+def test_digits2():
     return digits(1, 0, 2)
 
 @fpcore(
@@ -44,7 +46,7 @@ def digits2():
     spec='-2.0',
     strict=True
 )
-def digits3():
+def test_digits3():
     return digits(-1, 0, 2)
 
 @fpcore(
@@ -52,7 +54,7 @@ def digits3():
     spec='1.5',
     strict=True
 )
-def digits4():
+def test_digits4():
     return digits(3, -1, 2)
 
 @fpcore(
@@ -60,7 +62,7 @@ def digits4():
     spec='1.0',
     strict=True
 )
-def let1():
+def test_let1():
     a = 1.0
     return a
 
@@ -69,10 +71,12 @@ def let1():
     spec='2.0',
     strict=True
 )
-def let2():
+def test_let2():
     a = 1.0
     b = 1.0
     return a + b
+
+### Examples
 
 @fpcore(
     name='NMSE example 3.1',
@@ -82,3 +86,22 @@ def let2():
 )
 def nmse3_1(x: Real) -> Real:
     return sqrt(x + 1) - sqrt(x)
+
+### Compile loop
+
+cores: list[Function] = [
+    test_simple1,
+    test_simple2,
+    test_decnum,
+    test_digits1,
+    test_digits2,
+    test_digits3,
+    test_digits4,
+    test_let1,
+    test_let2,
+    nmse3_1
+]
+
+for core in cores:
+    fpc = fpy_to_fpcore(core)
+    print(fpc.sexp)
