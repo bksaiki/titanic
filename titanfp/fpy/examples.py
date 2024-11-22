@@ -83,9 +83,33 @@ def test_let2():
     cite=['hamming-1987', 'herbie-2015'],
     fpbench_domain='textbook',
     # pre=lambda x: x >= 0
+    strict=True
 )
 def nmse3_1(x: Real) -> Real:
     return sqrt(x + 1) - sqrt(x)
+
+# TODO: precondition
+@fpcore(
+    name='Daisy example instantaneousCurrent',
+    cite=['daisy-2018'],
+    strict=True
+)
+def instCurrent(
+    t : Real,
+    resistance : Real,
+    frequency : Real,
+    inductance : Real,
+    maxVoltage : Real
+):
+    pi = 3.14159265359
+    impedance_re = resistance
+    impedance_im = 2 * pi * frequency * inductance
+    denom = impedance_re ** 2 + impedance_im ** 2
+    current_re = (maxVoltage - impedance_re) / denom
+    current_im = (maxVoltage - impedance_im) / denom
+    maxCurrent = sqrt(current_re ** 2 + current_im ** 2)
+    theta = atan(current_im / current_re)
+    return maxCurrent * cos(2 * pi * frequency * t + theta)
 
 ### Compile loop
 
@@ -99,7 +123,8 @@ cores: list[Function] = [
     test_digits4,
     test_let1,
     test_let2,
-    nmse3_1
+    nmse3_1,
+    instCurrent
 ]
 
 for core in cores:

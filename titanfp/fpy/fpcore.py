@@ -15,14 +15,18 @@ def _compile_argument(arg: Argument):
 _unary_table : dict[Type[NaryExpr], Callable[..., fpc.Expr]] = {
     Neg : fpc.Neg,
     Fabs : fpc.Fabs,
-    Sqrt : fpc.Sqrt
+    Sqrt : fpc.Sqrt,
+    Sin : fpc.Sin,
+    Cos : fpc.Cos,
+    Tan : fpc.Tan,
+    Atan : fpc.Atan
 }
 
 _binary_table : dict[Type[NaryExpr], Callable[..., fpc.Expr]] = {
     Add : fpc.Add,
     Sub : fpc.Sub,
     Mul : fpc.Mul,
-    Div : fpc.Div
+    Div : fpc.Div,
 }
 
 def _compile_expr(e: Expr):

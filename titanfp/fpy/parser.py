@@ -3,6 +3,7 @@
 import ast
 import inspect
 
+from functools import reduce
 from typing import cast, Callable, Type
 
 from .fpyast import *
@@ -10,8 +11,21 @@ from .utils import raise_type_error
 
 _unary_table: dict[str, Callable[[Expr], Expr]] = {
     'fabs' : Fabs,
-    'sqrt' : Sqrt
+    'sqrt' : Sqrt,
+    'sin' : Sin,
+    'cos' : Cos,
+    'tan' : Tan,
+    'atan' : Atan
 }
+
+def _ipow(expr: Expr, n: int):
+    assert n >= 0, "must be a non-negative integer"
+    if n == 0:
+        return Integer(1)
+    elif n == 1:
+        return expr
+    else:
+        return reduce(Mul, [expr for _ in range(n)])
 
 class FPyParserError(Exception):
     """Parser error for FPy"""
@@ -221,6 +235,12 @@ class FPyParser:
                 return Mul(self._parse_expr(e.left), self._parse_expr(e.right))
             case ast.Div():
                 return Div(self._parse_expr(e.left), self._parse_expr(e.right))
+            case ast.Pow():
+                base = self._parse_expr(e.left)
+                exp = self._parse_expr(e.right)
+                if not isinstance(exp, Integer) or exp.val < 0:
+                    raise FPyParserError(self.source, 'FPy only supports `**` for small integer exponent, use `pow()` instead', e.op, e)
+                return _ipow(base, exp.val)
             case _:
                 raise FPyParserError(self.source, 'Not a valid FPy operator', e.op, e)
 

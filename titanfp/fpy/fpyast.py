@@ -130,6 +130,30 @@ class Div(BinaryExpr):
     def __init__(self, e1: Expr, e2: Expr):
         super().__init__('/', e1, e2)
 
+class Sin(UnaryExpr):
+    """FPy node: sine expression"""
+
+    def __init__(self, e: Expr):
+        super().__init__('sin', e)
+
+class Cos(UnaryExpr):
+    """FPy node: cosine expression"""
+
+    def __init__(self, e: Expr):
+        super().__init__('cos', e)
+
+class Tan(UnaryExpr):
+    """FPy node: tangent expression"""
+
+    def __init__(self, e: Expr):
+        super().__init__('tan', e)
+
+class Atan(UnaryExpr):
+    """FPy node: inverse tangent expression"""
+
+    def __init__(self, e: Expr):
+        super().__init__('atan', e)
+
 class Stmt(Ast):
     """FPy node: abstract statement"""
 
