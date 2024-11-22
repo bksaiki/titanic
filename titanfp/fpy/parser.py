@@ -16,144 +16,161 @@ _call_table: dict[str, tuple[int, Callable[..., Expr]]] = {
 class FPyParserError(Exception):
     """Parser error for FPy"""
 
-def _parse_assign_lhs(target: ast.expr, st: ast.stmt):
-    match target:
-        case ast.Name(id=id):
-            return id
-        case _:
-            raise FPyParserError(f'FPy expects an identifier {target} in {st}')
-
-def _parse_annotation(ann: ast.expr, st: ast.AST):
-    match ann:
-        case ast.Name('Real'):
-            return RealType()
-        case _:
-            raise FPyParserError(f'Unsupported FPy type annotation {ann} in {st}')
-
-def _parse_unaryop(e: ast.UnaryOp):
-    match e.op:
-        case ast.UAdd():
-            return _parse_expr(e.operand)
-        case ast.USub():
-            return Neg(_parse_expr(e.operand))
-        case _:
-            raise FPyParserError(f'Not a valid FPy operator: {e.op} in {e}')
-
-def _parse_binop(e: ast.BinOp):
-    match e.op:
-        case ast.Add():
-            return Add(_parse_expr(e.left), _parse_expr(e.right))
-        case ast.Sub():
-            return Sub(_parse_expr(e.left), _parse_expr(e.right))
-        case ast.Mult():
-            return Mul(_parse_expr(e.left), _parse_expr(e.right))
-        case ast.Div():
-            return Div(_parse_expr(e.left), _parse_expr(e.right))
-        case _:
-            raise FPyParserError(f'Not a valid FPy operator: {e.op} in {e}')
-
-def _parse_call(call: ast.expr, e: ast.expr):
-    match call:
-        case ast.Name(id=id):
-            return id
-        case _:
-            raise FPyParserError(f'FPy application must be an identifier: {call} in {e}')
-
-def _parse_expr(e: ast.expr):
-    match e:
-        case ast.UnaryOp():
-            return _parse_unaryop(e)
-        case ast.BinOp():
-            return _parse_binop(e)
-        case ast.Call(func=func, args=args, keywords=keywords):
-            for arg in args:
-                if isinstance(arg, ast.Starred):
-                    raise FPyParserError(f'FPy does not support argument unpacking: {e}')
-
-            if keywords != []:
-                raise FPyParserError(f'FPy does not support keyword arguments: {e}')
-
-            name = _parse_call(func, e)
-            match _call_table.get(name, None):
-                case None:
-                    # not a defined operator
-                    children = list(map(_parse_expr, args))
-                    return UnknownCall(name, *children)
-                case (1, cls):
-                    # defined unary operator
-                    if len(args) != 1:
-                        raise FPyParserError(f'FPy operator {name} expects 1 argument, given {len(args)} at {e}')
-                    return cls(_parse_expr(args[0]))
-                case _:
-                    raise NotImplementedError('call', name)
-        case ast.Constant(value=v):
-            match v:
-                case int() | float():
-                    return Num(v)
-                case _:
-                    raise FPyParserError(f'Unsupported constant: {e}') 
-        case ast.Name(id=id):
-            return Var(id)
-        case _:
-            raise FPyParserError(f'Not a valid FPy expression: {e}')
-
-def _parse_statement(st: ast.stmt) -> Stmt:
-    match st:
-        case ast.AnnAssign(target=target, annotation=ann, value=value):
-            if value is None:
-                raise FPyParserError(f'Assignment must have a value: {st}')
-            name = _parse_assign_lhs(target, st)
-            ty_ann = _parse_annotation(ann, st)
-            return Assign(name, _parse_expr(value), ty_ann)
-        case ast.Assign(targets=targets, value=value):
-            match targets:
-                case [t0]:
-                    name = _parse_assign_lhs(t0, st)
-                    return Assign(name, _parse_expr(value))
-                case _:
-                    raise FPyParserError(f'Unpacking assignment not a valid FPy statement: {st}')
-        case ast.Return(value=e):
-            if e is None:
-                raise FPyParserError(f'Return statement must have value: {st}')
-            return Return(_parse_expr(e))
-        case _:
-            raise FPyParserError(f'Not a valid FPy statement: {st}')
-
-def _parse_statements(sts: list[ast.stmt]):
-    match sts:
-        case []:
-            raise FPyParserError(f'Missing body statements: {sts}')
-        case [st]:
-            return _parse_statement(st)
-        case _:
-            stmts: list[Stmt] = []
-            for st in sts:
-                stmts.append(_parse_statement(st))
-            return Block(stmts)
-
-def _parse_function(tree: ast.FunctionDef)-> Function:
-    if tree.args.vararg:
-        raise FPyParserError(f'FPy does not support variary arguments: {tree.args.vararg} in {tree}')
-    if tree.args.kwarg:
-        raise FPyParserError(f'FPy does not support keyword arguments: {tree.args.kwarg} in {tree}')
-
-    args: list[Argument] = []
-    for arg in tree.args.posonlyargs + tree.args.args:
-        if arg.annotation is None:
-            raise FPyParserError(f'FPy requires argument annotations {arg.arg}')
-        ann =  _parse_annotation(arg.annotation, arg)
-        args.append(Argument('_' if arg.arg is None else arg.arg, ann))
-    
-    block = _parse_statements(tree.body)
-    return Function(args, block, ident=tree.name)
-
-def parse_tree(tree: ast.FunctionDef):
+class FPyParser:
     """
-    Parses an instance of an `ast.FunctionDef` into FPy.
+    Parser for FPy programs from Python ASTs.
     Valid FPy programs are only a subset of Python programs.
+    This parser checks for syntactic validity and produces FPy ASTs.
     """
-    func = _parse_function(tree)
-    return func
+
+    strict: bool
+    """
+    Only use the FPCore-defined set of operators.
+    Foreign calls are disallowed.
+    This option is off by default.
+    """
+
+    def __init__(self, strict=False):
+        self.strict = strict
+
+    def parse_function(self, func: ast.FunctionDef):
+        """
+        Parses an instance of an `ast.FunctionDef` into FPy.
+        Valid FPy programs are only a subset of Python programs.
+        """
+        if func.args.vararg:
+            raise FPyParserError(f'FPy does not support variary arguments: {func.args.vararg} in {func}')
+        if func.args.kwarg:
+            raise FPyParserError(f'FPy does not support keyword arguments: {func.args.kwarg} in {func}')
+
+        args: list[Argument] = []
+        for arg in func.args.posonlyargs + func.args.args:
+            if arg.annotation is None:
+                raise FPyParserError(f'FPy requires argument annotations {arg.arg}')
+            ann =  self._parse_annotation(arg.annotation, arg)
+            args.append(Argument('_' if arg.arg is None else arg.arg, ann))
+        
+        block = self._parse_statements(func.body)
+        return Function(args, block, ident=func.name)
+
+    def _parse_statements(self, sts: list[ast.stmt]):
+        match sts:
+            case []:
+                raise FPyParserError(f'Missing body statements: {sts}')
+            case [st]:
+                return self._parse_statement(st)
+            case _:
+                stmts: list[Stmt] = []
+                for st in sts:
+                    stmts.append(self._parse_statement(st))
+                return Block(stmts)
+
+    def _parse_statement(self, st: ast.stmt) -> Stmt:
+        match st:
+            case ast.AnnAssign(target=target, annotation=ann, value=value):
+                if value is None:
+                    raise FPyParserError(f'Assignment must have a value: {st}')
+                name = self._parse_assign_lhs(target, st)
+                ty_ann = self._parse_annotation(ann, st)
+                return Assign(name, self._parse_expr(value), ty_ann)
+            case ast.Assign(targets=targets, value=value):
+                match targets:
+                    case [t0]:
+                        name = self._parse_assign_lhs(t0, st)
+                        return Assign(name, self._parse_expr(value))
+                    case _:
+                        raise FPyParserError(f'Unpacking assignment not a valid FPy statement: {st}')
+            case ast.Return(value=e):
+                if e is None:
+                    raise FPyParserError(f'Return statement must have value: {st}')
+                return Return(self._parse_expr(e))
+            case _:
+                raise FPyParserError(f'Not a valid FPy statement: {st}')
+
+    def _parse_expr(self, e: ast.expr):
+        match e:
+            case ast.UnaryOp():
+                return self._parse_unaryop(e)
+            case ast.BinOp():
+                return self._parse_binop(e)
+            case ast.Call(func=func, args=args, keywords=keywords):
+                for arg in args:
+                    if isinstance(arg, ast.Starred):
+                        raise FPyParserError(f'FPy does not support argument unpacking: {e}')
+
+                if keywords != []:
+                    raise FPyParserError(f'FPy does not support keyword arguments: {e}')
+
+                name = self._parse_call(func, e)
+                match _call_table.get(name, None):
+                    case None:
+                        # not a defined operator
+                        if self.strict:
+                            raise FPyParserError(f'FPy does not allow foreign calls in strict mode: {e}')
+
+                        children = list(map(self._parse_expr, args))
+                        return UnknownCall(name, *children)
+                    case (1, cls):
+                        # defined unary operator
+                        if len(args) != 1:
+                            raise FPyParserError(f'FPy operator {name} expects 1 argument, given {len(args)} at {e}')
+                        return cls(self._parse_expr(args[0]))
+                    case _:
+                        raise NotImplementedError('call', name)
+            case ast.Constant(value=v):
+                match v:
+                    case int() | float():
+                        return Num(v)
+                    case _:
+                        raise FPyParserError(f'Unsupported constant: {e}') 
+            case ast.Name(id=id):
+                return Var(id)
+            case _:
+                raise FPyParserError(f'Not a valid FPy expression: {e}')
+
+    def _parse_unaryop(self, e: ast.UnaryOp):
+        match e.op:
+            case ast.UAdd():
+                return self._parse_expr(e.operand)
+            case ast.USub():
+                return Neg(self._parse_expr(e.operand))
+            case _:
+                raise FPyParserError(f'Not a valid FPy operator: {e.op} in {e}')
+
+    def _parse_binop(self, e: ast.BinOp):
+        match e.op:
+            case ast.Add():
+                return Add(self._parse_expr(e.left), self._parse_expr(e.right))
+            case ast.Sub():
+                return Sub(self._parse_expr(e.left), self._parse_expr(e.right))
+            case ast.Mult():
+                return Mul(self._parse_expr(e.left), self._parse_expr(e.right))
+            case ast.Div():
+                return Div(self._parse_expr(e.left), self._parse_expr(e.right))
+            case _:
+                raise FPyParserError(f'Not a valid FPy operator: {e.op} in {e}')
+
+    def _parse_call(self, call: ast.expr, e: ast.expr):
+        match call:
+            case ast.Name(id=id):
+                return id
+            case _:
+                raise FPyParserError(f'FPy application must be an identifier: {call} in {e}')
+
+    def _parse_assign_lhs(self, target: ast.expr, st: ast.stmt):
+        match target:
+            case ast.Name(id=id):
+                return id
+            case _:
+                raise FPyParserError(f'FPy expects an identifier {target} in {st}')
+
+    def _parse_annotation(self, ann: ast.expr, st: ast.AST):
+        match ann:
+            case ast.Name('Real'):
+                return RealType()
+            case _:
+                raise FPyParserError(f'Unsupported FPy type annotation {ann} in {st}')
+
 
 def fpcore(*args, **kwargs):
     """
@@ -172,7 +189,9 @@ def fpcore(*args, **kwargs):
         ptree = ast.parse(source).body[0]
         assert isinstance(ptree, ast.FunctionDef)
 
-        core = parse_tree(ptree)
+        strict = kwargs.get('strict', False)
+        parser = FPyParser(strict=strict)
+        core = parser.parse_function(ptree)
 
         # handle keywords
         for k in kwargs:
