@@ -70,6 +70,17 @@ class Digits(ValueExpr):
         self.e = e
         self.b = b
 
+class IfExpr(Expr):
+    """FPy node: if expression (ternary)"""
+    cond: Expr
+    ift: Expr
+    iff: Expr
+
+    def __init__(self, cond: Expr, ift: Expr, iff: Expr):
+        self.cond = cond
+        self.ift = ift
+        self.iff = iff
+
 class NaryExpr(Expr):
     """FPy node: application expression"""
     name: str
@@ -153,6 +164,46 @@ class Atan(UnaryExpr):
 
     def __init__(self, e: Expr):
         super().__init__('atan', e)
+
+class Eq(BinaryExpr):
+    """FPy node: == expression"""
+    def __init__(self, e1: Expr, e2: Expr):
+        super().__init__('==', e1, e2)
+
+class Ne(BinaryExpr):
+    """FPy node: != expression"""
+    def __init__(self, e1: Expr, e2: Expr):
+        super().__init__('!=', e1, e2)
+
+class Lt(BinaryExpr):
+    """FPy node: < expression"""
+    def __init__(self, e1: Expr, e2: Expr):
+        super().__init__('<', e1, e2)
+
+class Le(BinaryExpr):
+    """FPy node: <= expression"""
+    def __init__(self, e1: Expr, e2: Expr):
+        super().__init__('<=', e1, e2)
+
+class Gt(BinaryExpr):
+    """FPy node: > expression"""
+    def __init__(self, e1: Expr, e2: Expr):
+        super().__init__('>', e1, e2)
+
+class Ge(BinaryExpr):
+    """FPy node: >= expression"""
+    def __init__(self, e1: Expr, e2: Expr):
+        super().__init__('>=', e1, e2)
+
+class Or(BinaryExpr):
+    """FPy node: || expression"""
+    def __init__(self, e1: Expr, e2: Expr):
+        super().__init__('or', e1, e2)
+
+class And(BinaryExpr):
+    """FPy node: && expression"""
+    def __init__(self, e1: Expr, e2: Expr):
+        super().__init__('and', e1, e2)
 
 class Stmt(Ast):
     """FPy node: abstract statement"""

@@ -27,10 +27,18 @@ _binary_table : dict[Type[NaryExpr], Callable[..., fpc.Expr]] = {
     Sub : fpc.Sub,
     Mul : fpc.Mul,
     Div : fpc.Div,
+    Eq : fpc.EQ,
+    Ne : fpc.NEQ,
+    Lt : fpc.LT,
+    Le : fpc.LEQ,
+    Gt : fpc.GT,
+    Ge : fpc.GEQ
 }
 
 def _compile_expr(e: Expr):
     match e:
+        case IfExpr(cond=cond, ift=ift, iff=iff):
+            return fpc.If(_compile_expr(cond), _compile_expr(ift), _compile_expr(iff))
         case UnknownCall(name=name, children=children):
             return fpc.UnknownOperator(name=name, *map(_compile_expr, children))
         case NaryExpr(name=name, children=children):

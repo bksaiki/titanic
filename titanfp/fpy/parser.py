@@ -18,6 +18,15 @@ _unary_table: dict[str, Callable[[Expr], Expr]] = {
     'atan' : Atan
 }
 
+_binary_table: dict[str, Callable[[Expr, Expr], Expr]] = {
+    '==' : Eq,
+    '!=' : Ne,
+    '<' : Lt,
+    '<=' : Le,
+    '>' : Gt,
+    '>=' : Ge
+}
+
 def _ipow(expr: Expr, n: int):
     assert n >= 0, "must be a non-negative integer"
     if n == 0:
@@ -143,10 +152,14 @@ class FPyParser:
 
     def _parse_expr(self, e: ast.expr):
         match e:
+            case ast.IfExp(test=cond, body=ift, orelse=iff):
+                return IfExpr(self._parse_expr(cond), self._parse_expr(ift), self._parse_expr(iff))
             case ast.UnaryOp():
                 return self._parse_unaryop(e)
             case ast.BinOp():
                 return self._parse_binop(e)
+            case ast.Compare():
+                return self._parse_compare(e)
             case ast.Call(func=func, args=args, keywords=keywords):
                 for arg in args:
                     if isinstance(arg, ast.Starred):
@@ -180,8 +193,14 @@ class FPyParser:
                     # unary operator
                     if len(args) != 1:
                         raise FPyParserError(self.source, f'`{name}` expects 1 argument, given {len(args)}', e)
-                    cls = _unary_table[name]
-                    return cls(self._parse_expr(args[0]))
+                    cls1 = _unary_table[name]
+                    return cls1(self._parse_expr(args[0]))
+                elif name in _binary_table:
+                    # unary operator
+                    if len(args) != 2:
+                        raise FPyParserError(self.source, f'`{name}` expects 2 argument, given {len(args)}', e)
+                    cls2 = _binary_table[name]
+                    return cls2(self._parse_expr(args[0]), self._parse_expr(args[1]))
                 else:
                     # not a defined operator
                     if self.strict:
@@ -208,7 +227,7 @@ class FPyParser:
     def _parse_unaryop(self, e: ast.UnaryOp):
         match e.op:
             case ast.UAdd():
-                return self._parse_expr(e.operand)
+                return cast(Expr, self._parse_expr(e.operand))
             case ast.USub():
                 match self._parse_expr(e.operand):
                     case Integer(val=val):
@@ -224,6 +243,36 @@ class FPyParser:
                         return Neg(n)
             case _:
                 raise FPyParserError(self.source, 'Not a valid FPy operator', e.op, e)
+
+    def _parse_cmpop(self, op: ast.cmpop, e: ast.Compare):
+        match op:
+            case ast.Eq():
+                return Eq
+            case ast.NotEq():
+                return Ne
+            case ast.Lt():
+                return Lt
+            case ast.LtE():
+                return Le
+            case ast.Gt():
+                return Gt
+            case ast.GtE():
+                return Ge
+            case _:
+                raise FPyParserError(self.source, 'Not a valid FPy comparator', op, e)
+
+    def _parse_compare(self, e: ast.Compare):
+        match e.ops:
+            case [cmp]:
+                cls = self._parse_cmpop(cmp, e)
+                return cls(self._parse_expr(e.left), self._parse_expr(e.comparators[0]))
+            case [cmp, *cmps]:
+                cls = self._parse_cmpop(cmp, e)
+                term = cls(self._parse_expr(e.left), self._parse_expr(e.comparators[0]))
+                for cmp, lhs, rhs in zip(cmps, e.comparators, e.comparators[1:]):
+                    cls = self._parse_cmpop(cmp, e)
+                    term = And(term, cls(lhs, rhs))
+                return term
 
     def _parse_binop(self, e: ast.BinOp):
         match e.op:

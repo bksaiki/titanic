@@ -76,6 +76,13 @@ def test_let2():
     b = 1.0
     return a + b
 
+@fpcore(
+  name='Test if expression (1/6)',
+  spec='1.0'
+)
+def test_if1():
+  return 1.0 if 1.0 > 0.0 else 0.0
+
 ### Examples
 
 @fpcore(
@@ -123,6 +130,7 @@ cores: list[Function] = [
     test_digits4,
     test_let1,
     test_let2,
+    test_if1,
     nmse3_1,
     instCurrent
 ]
