@@ -136,6 +136,11 @@ class FPyParser:
                         return Assign(name, self._parse_expr(value))
                     case _:
                         raise FPyParserError(self.source, 'Unpacking assignment not a valid FPy statement', st)
+            case ast.If(test=test, body=body, orelse=orelse):
+                cond = self._parse_expr(test)
+                ift = self._parse_statements(body)
+                iff = self._parse_statements(orelse)
+                return IfStmt(cond, ift, iff)
             case ast.Return(value=e):
                 if e is None:
                     raise FPyParserError(self.source, 'Return statement must have value', st)

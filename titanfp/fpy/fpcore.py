@@ -82,10 +82,12 @@ def _compile_compare(e: Compare):
                     curr_group = new_group
                 
             if len(groups) == 1:
-                cls = _compile_compareop(groups[0][0])
-                return cls(*groups[0][1])
+                op, args = groups[0]
+                cls = _compile_compareop(op)
+                return cls(*args)
             else:
-                return And(*[_compile_compareop(op)(*args) for op, args in groups])
+                print(groups)
+                return fpc.And(*[_compile_compareop(op)(*args) for op, args in groups])
 
 
 def _compile_expr(e: Expr) -> fpc.Expr:

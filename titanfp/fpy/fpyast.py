@@ -218,6 +218,17 @@ class Assign(Stmt):
         self.val = val
         self.ann = ann
 
+class IfStmt(Stmt):
+    """FPy node: if statement"""
+    cond: Expr
+    ift: Stmt
+    iff: Stmt
+
+    def __init__(self, cond: Expr, ift: Stmt, iff: Stmt):
+        self.cond = cond
+        self.ift = ift
+        self.iff = iff
+
 class Return(Stmt):
     """FPy node: return statement"""
     e: Expr

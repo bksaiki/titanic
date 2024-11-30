@@ -80,15 +80,15 @@ def test_let2():
   name='Test if expression (1/6)',
   spec='1.0'
 )
-def test_if1():
+def test_ife1():
   return 1.0 if 1.0 > 0.0 else 0.0
 
 @fpcore(name='Test if expression (2/6)')
-def test_if2():
+def test_ife2():
   return 1.0 if 0.0 < 1.0 < 2.0 else 0.0
 
 @fpcore(name='Test if expression (3/6)')
-def test_if3():
+def test_ife3():
   x = 1.0
   y = 2.0
   z = 3.0
@@ -96,12 +96,20 @@ def test_if3():
   return 1.0 if (x + 1.0) < (y < 2.0) < (z + 3.0) < (t + 4.0) else 0.0
 
 @fpcore(name='Test if expression (4/6)')
-def test_if4():
+def test_ife4():
   x = 1.0
   y = 2.0
   z = 3.0
   t = 4.0
-  return 1.0 if (x + 1.0) < (y < 2.0) <= (z + 3.0) < (t + 4.0) else 0.0
+  return 1.0 if (x + 1.0) < (y + 2.0) <= (z + 3.0) < (t + 4.0) else 0.0
+
+@fpcore(name='Test if statement')
+def test_if():
+    if 0.0 < 1.0:
+        t = 1.0
+    else:
+        t = 0.0
+    return t
 
 ### Examples
 
@@ -150,10 +158,10 @@ cores: list[Function] = [
     test_digits4,
     test_let1,
     test_let2,
-    test_if1,
-    test_if2,
-    test_if3,
-    test_if4,
+    test_ife1,
+    test_ife2,
+    test_ife3,
+    test_ife4,
     nmse3_1,
     instCurrent
 ]
