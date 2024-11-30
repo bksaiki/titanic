@@ -18,14 +18,7 @@ _unary_table: dict[str, Callable[[Expr], Expr]] = {
     'atan' : Atan
 }
 
-_binary_table: dict[str, Callable[[Expr, Expr], Expr]] = {
-    '==' : Eq,
-    '!=' : Ne,
-    '<' : Lt,
-    '<=' : Le,
-    '>' : Gt,
-    '>=' : Ge
-}
+_binary_table: dict[str, Callable[[Expr, Expr], Expr]] = {}
 
 def _ipow(expr: Expr, n: int):
     assert n >= 0, "must be a non-negative integer"
@@ -246,33 +239,26 @@ class FPyParser:
 
     def _parse_cmpop(self, op: ast.cmpop, e: ast.Compare):
         match op:
-            case ast.Eq():
-                return Eq
-            case ast.NotEq():
-                return Ne
             case ast.Lt():
-                return Lt
+                return CompareOp.LT
             case ast.LtE():
-                return Le
-            case ast.Gt():
-                return Gt
+                return CompareOp.LE
             case ast.GtE():
-                return Ge
+                return CompareOp.GE
+            case ast.Gt():
+                return CompareOp.GT
+            case ast.Eq():
+                return CompareOp.EQ
+            case ast.NotEq():
+                return CompareOp.NE
             case _:
                 raise FPyParserError(self.source, 'Not a valid FPy comparator', op, e)
 
     def _parse_compare(self, e: ast.Compare):
-        match e.ops:
-            case [cmp]:
-                cls = self._parse_cmpop(cmp, e)
-                return cls(self._parse_expr(e.left), self._parse_expr(e.comparators[0]))
-            case [cmp, *cmps]:
-                cls = self._parse_cmpop(cmp, e)
-                term = cls(self._parse_expr(e.left), self._parse_expr(e.comparators[0]))
-                for cmp, lhs, rhs in zip(cmps, e.comparators, e.comparators[1:]):
-                    cls = self._parse_cmpop(cmp, e)
-                    term = And(term, cls(lhs, rhs))
-                return term
+        # comparators are guaranteed to have 2 or more values
+        ops = [self._parse_cmpop(op, e) for op in e.ops]
+        args = [self._parse_expr(e) for e in [e.left, *e.comparators]]
+        return Compare(ops, args)
 
     def _parse_binop(self, e: ast.BinOp):
         match e.op:

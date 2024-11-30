@@ -1,6 +1,7 @@
 """AST nodes in the FPY language"""
 
 from abc import ABC
+from enum import Enum
 from typing import Any, Optional, Self
 
 class Ast(ABC):
@@ -165,45 +166,36 @@ class Atan(UnaryExpr):
     def __init__(self, e: Expr):
         super().__init__('atan', e)
 
-class Eq(BinaryExpr):
-    """FPy node: == expression"""
-    def __init__(self, e1: Expr, e2: Expr):
-        super().__init__('==', e1, e2)
-
-class Ne(BinaryExpr):
-    """FPy node: != expression"""
-    def __init__(self, e1: Expr, e2: Expr):
-        super().__init__('!=', e1, e2)
-
-class Lt(BinaryExpr):
-    """FPy node: < expression"""
-    def __init__(self, e1: Expr, e2: Expr):
-        super().__init__('<', e1, e2)
-
-class Le(BinaryExpr):
-    """FPy node: <= expression"""
-    def __init__(self, e1: Expr, e2: Expr):
-        super().__init__('<=', e1, e2)
-
-class Gt(BinaryExpr):
-    """FPy node: > expression"""
-    def __init__(self, e1: Expr, e2: Expr):
-        super().__init__('>', e1, e2)
-
-class Ge(BinaryExpr):
-    """FPy node: >= expression"""
-    def __init__(self, e1: Expr, e2: Expr):
-        super().__init__('>=', e1, e2)
-
-class Or(BinaryExpr):
+class Or(NaryExpr):
     """FPy node: || expression"""
-    def __init__(self, e1: Expr, e2: Expr):
-        super().__init__('or', e1, e2)
+    def __init__(self, *children: Expr):
+        super().__init__('or', *children)
 
-class And(BinaryExpr):
+class And(NaryExpr):
     """FPy node: && expression"""
-    def __init__(self, e1: Expr, e2: Expr):
-        super().__init__('and', e1, e2)
+    def __init__(self, *children: Expr):
+        super().__init__('and', *children)
+
+class CompareOp(Enum):
+    LT = 0
+    LE = 1
+    GE = 2
+    GT = 3
+    EQ = 4
+    NE = 5
+
+class Compare(Expr):
+    """FPy node: N-argument comparison (N >= 2)"""
+    ops: list[CompareOp]
+    children: list[Expr]
+        
+    def __init__(self, ops: list[CompareOp], children: list[Expr]):
+        if not isinstance(children, list) or len(children) < 2:
+            raise TypeError('expected list of length >= 2', children)
+        if not isinstance(ops, list) or len(ops) != len(children) - 1:
+            raise TypeError(f'expected list of length >= {len(children)}', children)
+        self.ops = ops
+        self.children = children
 
 class Stmt(Ast):
     """FPy node: abstract statement"""

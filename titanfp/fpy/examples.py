@@ -83,6 +83,26 @@ def test_let2():
 def test_if1():
   return 1.0 if 1.0 > 0.0 else 0.0
 
+@fpcore(name='Test if expression (2/6)')
+def test_if2():
+  return 1.0 if 0.0 < 1.0 < 2.0 else 0.0
+
+@fpcore(name='Test if expression (3/6)')
+def test_if3():
+  x = 1.0
+  y = 2.0
+  z = 3.0
+  t = 4.0
+  return 1.0 if (x + 1.0) < (y < 2.0) < (z + 3.0) < (t + 4.0) else 0.0
+
+@fpcore(name='Test if expression (4/6)')
+def test_if4():
+  x = 1.0
+  y = 2.0
+  z = 3.0
+  t = 4.0
+  return 1.0 if (x + 1.0) < (y < 2.0) <= (z + 3.0) < (t + 4.0) else 0.0
+
 ### Examples
 
 @fpcore(
@@ -131,6 +151,9 @@ cores: list[Function] = [
     test_let1,
     test_let2,
     test_if1,
+    test_if2,
+    test_if3,
+    test_if4,
     nmse3_1,
     instCurrent
 ]
@@ -138,3 +161,38 @@ cores: list[Function] = [
 for core in cores:
     fpc = fpy_to_fpcore(core)
     print(fpc.sexp)
+
+# (FPCore newton-raphson (x0 tolerance)
+#  (while (> (fabs (- x1 x0)) tolerance) 
+#   ([x0 x0 x1]
+#    [x1 (- x0 (/ (f x0) (fprime x0)))
+#        (- x1 (/ (f x1) (fprime x1)))])
+#   x1)
+# )
+
+# def newton(x0 : Real, eps : Real):
+#     x1 = x0 - (f(x0) / fprime(x0))
+#     while eps < fabs(x1 - x0):
+#         x0 = x1
+#         x1 = x1 - (f(x1) / fprime(x1))
+#     return x1
+
+
+# def newton2(x0, eps):
+#     x1 = x0 - (f(x0) / fprime(x0))
+#     with While(eps < fabs(x1 - x0)) as result:
+#         x0 = x1
+#         x1 = x1 - (f(x1) / fprime(x1))
+#     return x1
+
+
+
+
+# (FPCore newton2 (x0 tolerance)
+#   (let ([x1 ...])
+#    (let ([env
+         #     (while <cond> ([env <update env>])
+         #       (array x0 x1))])
+         # (let ([x0 (ref env 0)]
+        #        [x1 (ref env 1)])
+        #    x1))))

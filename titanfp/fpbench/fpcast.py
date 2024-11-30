@@ -1,6 +1,7 @@
 """A reusable AST for manipulating or executing FPCores in python."""
 
 import typing
+
 #from . import fpcommon
 
 
@@ -855,6 +856,8 @@ class Tgamma(UnaryExpr):
 
 
 # comparison
+
+
 
 class LT(NaryExpr):
     name: str = '<'

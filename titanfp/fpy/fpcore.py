@@ -2,8 +2,9 @@
 
 from typing import Callable, Type
 
-from .fpyast import *
 from ..fpbench import fpcast as fpc
+from .fpyast import *
+from .gensym import Gensym
 
 def _compile_argument(arg: Argument):
     match arg.ty:
@@ -27,30 +28,84 @@ _binary_table : dict[Type[NaryExpr], Callable[..., fpc.Expr]] = {
     Sub : fpc.Sub,
     Mul : fpc.Mul,
     Div : fpc.Div,
-    Eq : fpc.EQ,
-    Ne : fpc.NEQ,
-    Lt : fpc.LT,
-    Le : fpc.LEQ,
-    Gt : fpc.GT,
-    Ge : fpc.GEQ
 }
 
-def _compile_expr(e: Expr):
+def _compile_compareop(op: CompareOp):
+    match op:
+        case CompareOp.LT:
+            return fpc.LT
+        case CompareOp.LE:
+            return fpc.LEQ
+        case CompareOp.GE:
+            return fpc.GEQ
+        case CompareOp.GT:
+            return fpc.GT
+        case CompareOp.EQ:
+            return fpc.EQ
+        case CompareOp.NE:
+            return fpc.NEQ
+        case _:
+            raise NotImplementedError(op)
+
+def _compile_compare(e: Compare):
+    assert e.ops != [], "should not be empty"
+    match e.ops:
+        case [op]:
+            # 2-argument case: just compile
+            cls = _compile_compareop(op)
+            return cls(_compile_expr(e.children[0]), _compile_expr(e.children[1]))
+        case [op, *ops]:
+            # N-argument case:
+            # TODO: want to evaluate each argument only once;
+            #       may need to let-bind in case any argument is
+            #       used multiple times
+            args = [_compile_expr(arg) for arg in e.children]
+
+            # gensym = Gensym()
+            # for arg in args:
+            #     if isinstance(arg, fpc.Var):
+            #         gensym.reserve(arg.name)
+
+            curr_group = (op, [args[0], args[1]])
+            groups: list[tuple[CompareOp, list[fpc.Expr]]] = [curr_group]
+            # let_binds: dict[str, fpc.Expr] = {}
+
+            for op, lhs, rhs in zip(ops, args[1:], args[2:]):
+                if op == curr_group[0] or isinstance(lhs, fpc.ValueExpr):
+                    # same op => append
+                    # different op (terminal) => append
+                    curr_group[1].append(lhs)
+                else:
+                    # different op (non-terminal) => new group
+                    new_group = (op, [lhs, rhs])
+                    groups.append(new_group)
+                    curr_group = new_group
+                
+            if len(groups) == 1:
+                cls = _compile_compareop(groups[0][0])
+                return cls(*groups[0][1])
+            else:
+                return And(*[_compile_compareop(op)(*args) for op, args in groups])
+
+
+def _compile_expr(e: Expr) -> fpc.Expr:
     match e:
         case IfExpr(cond=cond, ift=ift, iff=iff):
             return fpc.If(_compile_expr(cond), _compile_expr(ift), _compile_expr(iff))
-        case UnknownCall(name=name, children=children):
-            return fpc.UnknownOperator(name=name, *map(_compile_expr, children))
+        case Compare():
+            return _compile_compare(e)
         case NaryExpr(name=name, children=children):
-            cls = _unary_table.get(type(e), None)
-            if cls is not None:
+            ty_e = type(e)
+            if ty_e in _unary_table:
+                cls = _unary_table[ty_e]
                 return cls(_compile_expr(children[0]))
-            
-            cls = _binary_table.get(type(e), None)
-            if cls is not None:
+            elif ty_e in _binary_table:
+                cls = _binary_table[ty_e]
                 return cls(_compile_expr(children[0]), _compile_expr(children[1]))
-
-            raise NotImplementedError(e)
+            elif isinstance(e, UnknownCall):
+                return fpc.UnknownOperator(name=name, *map(_compile_expr, children))
+            else:
+                raise NotImplementedError(e)
         case Var(name=name):
             return fpc.Var(name)
         case Num(val=val):
@@ -78,7 +133,7 @@ def _compile_block(block: Block):
         case _:
            raise NotImplementedError('unexpected block', block.stmts)
 
-def _compile_statement(stmt: Stmt):
+def _compile_statement(stmt: Stmt) -> fpc.Expr:
     match stmt:
         case Block():
             return _compile_block(stmt)

@@ -1,5 +1,4 @@
 from abc import ABC
-from typing import Callable
 
 _Real = Real | int | float
 
