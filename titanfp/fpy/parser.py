@@ -4,21 +4,11 @@ import ast
 import inspect
 
 from functools import reduce
-from typing import cast, Callable, Type
+from typing import cast, Callable
 
 from .fpyast import *
+from . import parser_ops as ops
 from .utils import raise_type_error
-
-_unary_table: dict[str, Callable[[Expr], Expr]] = {
-    'fabs' : Fabs,
-    'sqrt' : Sqrt,
-    'sin' : Sin,
-    'cos' : Cos,
-    'tan' : Tan,
-    'atan' : Atan
-}
-
-_binary_table: dict[str, Callable[[Expr, Expr], Expr]] = {}
 
 def _ipow(expr: Expr, n: int):
     assert n >= 0, "must be a non-negative integer"
@@ -148,6 +138,26 @@ class FPyParser:
             case _:
                 raise FPyParserError(self.source, 'Not a valid FPy statement', st)
 
+    def _parse_digits(self, e: ast.expr, args: list[ast.expr]):
+        if len(args) != 3:
+            raise FPyParserError(self.source, f'`digits` expects 3 arguments, given {len(args)}', e)
+
+        m = self._parse_expr(args[0])
+        if not isinstance(m, Integer):
+            raise FPyParserError(self.source, f'first argument of `digits` must be an integer, given {len(args)}', e)
+
+        exp = self._parse_expr(args[1])
+        if not isinstance(exp, Integer):
+            raise FPyParserError(self.source, f'second argument of `digits` must be an integer', e)
+    
+        base = self._parse_expr(args[2])
+        if not isinstance(base, Integer):
+            raise FPyParserError(self.source, f'third argument of `digits` must be an integer', e)
+        if base.val < 2:
+            raise FPyParserError(self.source, f'third argument of `digits` must greater than 1', e)
+
+        return Digits(m.val, exp.val, base.val)
+
     def _parse_expr(self, e: ast.expr):
         match e:
             case ast.IfExp(test=cond, body=ift, orelse=iff):
@@ -169,36 +179,28 @@ class FPyParser:
                 name = self._parse_call(func, e)
                 if name == 'digits':
                     # special case: digits
-                    if len(args) != 3:
-                        raise FPyParserError(self.source, f'`digits` expects 3 arguments, given {len(args)}', e)
-
-                    m = self._parse_expr(args[0])
-                    if not isinstance(m, Integer):
-                        raise FPyParserError(self.source, f'first argument of `digits` must be an integer, given {len(args)}', e)
-
-                    exp = self._parse_expr(args[1])
-                    if not isinstance(exp, Integer):
-                        raise FPyParserError(self.source, f'second argument of `digits` must be an integer', e)
-                
-                    base = self._parse_expr(args[2])
-                    if not isinstance(base, Integer):
-                        raise FPyParserError(self.source, f'third argument of `digits` must be an integer', e)
-                    if base.val < 2:
-                        raise FPyParserError(self.source, f'third argument of `digits` must greater than 1', e)
-
-                    return Digits(m.val, exp.val, base.val)
-                elif name in _unary_table:
+                    return self._parse_digits(e, args)
+                elif name in ops.unary_table:
                     # unary operator
                     if len(args) != 1:
                         raise FPyParserError(self.source, f'`{name}` expects 1 argument, given {len(args)}', e)
-                    cls1 = _unary_table[name]
-                    return cls1(self._parse_expr(args[0]))
-                elif name in _binary_table:
-                    # unary operator
+                    cls = ops.unary_table[name]
+                    return cls(self._parse_expr(args[0]))
+                elif name in ops.binary_table:
+                    # binary operator
                     if len(args) != 2:
                         raise FPyParserError(self.source, f'`{name}` expects 2 argument, given {len(args)}', e)
-                    cls2 = _binary_table[name]
-                    return cls2(self._parse_expr(args[0]), self._parse_expr(args[1]))
+                    cls = ops.binary_table[name]
+                    return cls(self._parse_expr(args[0]), self._parse_expr(args[1]))
+                elif name in ops.ternary_table:
+                    # ternary operator
+                    if len(args) != 3:
+                        raise FPyParserError(self.source, f'`{name}` expects 3 argument, given {len(args)}', e)
+                    cls = ops.ternary_table[name]
+                    x0 = self._parse_expr(args[0])
+                    x1 = self._parse_expr(args[1])
+                    x2 = self._parse_expr(args[2])
+                    return cls(x0, x1, x2)
                 else:
                     # not a defined operator
                     if self.strict:

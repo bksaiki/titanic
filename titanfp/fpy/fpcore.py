@@ -86,7 +86,6 @@ def _compile_compare(e: Compare):
                 cls = _compile_compareop(op)
                 return cls(*args)
             else:
-                print(groups)
                 return fpc.And(*[_compile_compareop(op)(*args) for op, args in groups])
 
 
