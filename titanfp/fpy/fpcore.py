@@ -3,6 +3,7 @@
 from typing import Callable, Type
 
 from ..fpbench import fpcast as fpc
+from . import fpcore_ops as ops
 from .fpyast import *
 from .gensym import Gensym
 
@@ -12,23 +13,6 @@ def _compile_argument(arg: Argument):
             return arg.name, None, None
         case _:
             raise NotImplementedError(arg)
-        
-_unary_table : dict[Type[NaryExpr], Callable[..., fpc.Expr]] = {
-    Neg : fpc.Neg,
-    Fabs : fpc.Fabs,
-    Sqrt : fpc.Sqrt,
-    Sin : fpc.Sin,
-    Cos : fpc.Cos,
-    Tan : fpc.Tan,
-    Atan : fpc.Atan
-}
-
-_binary_table : dict[Type[NaryExpr], Callable[..., fpc.Expr]] = {
-    Add : fpc.Add,
-    Sub : fpc.Sub,
-    Mul : fpc.Mul,
-    Div : fpc.Div,
-}
 
 def _compile_compareop(op: CompareOp):
     match op:
@@ -95,18 +79,13 @@ def _compile_expr(e: Expr) -> fpc.Expr:
             return fpc.If(_compile_expr(cond), _compile_expr(ift), _compile_expr(iff))
         case Compare():
             return _compile_compare(e)
+        case UnknownCall(name=name, children=children):
+            return fpc.UnknownOperator(name=name, *map(_compile_expr, children))
         case NaryExpr(name=name, children=children):
-            ty_e = type(e)
-            if ty_e in _unary_table:
-                cls = _unary_table[ty_e]
-                return cls(_compile_expr(children[0]))
-            elif ty_e in _binary_table:
-                cls = _binary_table[ty_e]
-                return cls(_compile_expr(children[0]), _compile_expr(children[1]))
-            elif isinstance(e, UnknownCall):
-                return fpc.UnknownOperator(name=name, *map(_compile_expr, children))
-            else:
-                raise NotImplementedError(e)
+            if type(e) not in ops.known_table:
+                raise NotImplementedError('no compilation method for', e)        
+            cls = ops.known_table[type(e)]
+            return cls(*map(_compile_expr, children))
         case Var(name=name):
             return fpc.Var(name)
         case Num(val=val):
