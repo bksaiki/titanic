@@ -41,7 +41,6 @@ unary_table: dict[str, Callable[..., Expr]] = {
     'isnan' : IsNan,
     'isnormal' : IsNormal,
     'signbit' : Signbit,
-    'not' : Not
 }
 
 binary_table: dict[str, Callable[..., Expr]] = {

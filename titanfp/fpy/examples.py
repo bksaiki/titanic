@@ -146,6 +146,21 @@ def instCurrent(
     theta = atan(current_im / current_re)
     return maxCurrent * cos(2 * pi * frequency * t + theta)
 
+@fpcore(
+    name='azimuth',
+    cite=['solovyev-2015'],
+    strict=True
+)
+def azimuth(lat1: Real, lat2: Real, lon1: Real, lon2: Real):
+    dLon = lon2 - lon1
+    s_lat1 = sin(lat1)
+    c_lat1 = cos(lat1)
+    s_lat2 = sin(lat2)
+    c_lat2 = cos(lat2)
+    s_dLon = sin(dLon)
+    c_dLon = cos(dLon)
+    return atan((c_lat2 * s_dLon) / ((c_lat1 * s_lat2) - (s_lat1 * c_lat2 * c_dLon)))
+
 ### Compile loop
 
 cores: list[Function] = [
@@ -163,7 +178,8 @@ cores: list[Function] = [
     test_ife3,
     test_ife4,
     nmse3_1,
-    instCurrent
+    instCurrent,
+    azimuth
 ]
 
 for core in cores:
