@@ -36,7 +36,7 @@ class Argument(Ast):
 class Expr(Ast):
     """FPy node: abstract expression"""
 
-class ValueExpr(Ast):
+class ValueExpr(Expr):
     """FPy node: abstract terminal"""
 
 class Var(ValueExpr):
