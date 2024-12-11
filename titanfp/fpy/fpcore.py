@@ -164,7 +164,7 @@ class FPCoreCompiler(ReduceVisitor):
     # Functions
 
     def _visit_function(self, func, ctx):
-        args = list(map(self._visit_argument, func.args))
+        args = [self._visit_argument(arg) for arg in func.args]
         # TODO: parse data
         props = func.ctx.props
 

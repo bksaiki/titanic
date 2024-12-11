@@ -121,6 +121,7 @@ def test_if():
     strict=True
 )
 def nmse3_1(x: Real) -> Real:
+    y = x + 1
     return sqrt(x + 1) - sqrt(x)
 
 # TODO: precondition

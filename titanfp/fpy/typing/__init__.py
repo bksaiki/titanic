@@ -16,10 +16,3 @@ Use the hints:
 The names in this module must be imported directly into
 the importing namespace.
 """
-
-from abc import ABC
-
-class Real(ABC):
-    """FPy typing hint for real values."""
-    pass
-
