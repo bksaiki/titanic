@@ -79,6 +79,8 @@ def _compile_expr(e: Expr) -> fpc.Expr:
             return fpc.If(_compile_expr(cond), _compile_expr(ift), _compile_expr(iff))
         case Compare():
             return _compile_compare(e)
+        case ArrayExpr(children=children):
+            return fpc.Array(*map(_compile_expr, children))
         case UnknownCall(name=name, children=children):
             return fpc.UnknownOperator(name=name, *map(_compile_expr, children))
         case NaryExpr(name=name, children=children):

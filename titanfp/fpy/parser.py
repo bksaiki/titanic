@@ -208,6 +208,8 @@ class FPyParser:
 
                     children = list(map(self._parse_expr, args))
                     return UnknownCall(name, *children)
+            case ast.Tuple(elts=elts):
+                return ArrayExpr(*map(self._parse_expr, elts))
             case ast.Constant(value=v):
                 match v:
                     case int():

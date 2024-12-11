@@ -111,6 +111,13 @@ class TernaryExpr(NaryExpr):
 class UnknownCall(NaryExpr):
     """FPy node: abstract application"""
 
+class ArrayExpr(NaryExpr):
+    """FPy node: array expression"""
+    name = 'array'
+
+    def __init__(self, *children: Expr):
+        super().__init__(*children)
+
 # IEEE 754 required arithmetic
 
 class Add(BinaryExpr):
