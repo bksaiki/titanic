@@ -162,8 +162,17 @@ def azimuth(lat1: Real, lat2: Real, lon1: Real, lon2: Real):
     return atan((c_lat2 * s_dLon) / ((c_lat1 * s_lat2) - (s_lat1 * c_lat2 * c_dLon)))
 
 @fpcore
-def test_array():
+def test_array1():
     return (1.0, 2.0)
+
+@fpcore
+def test_array2():
+    return 1.0, 2.0, 3.0
+
+@fpcore
+def test_array3():
+    x, y = 1.0, 2.0
+    return x + y
 
 @fpcore
 def if_stmt():
@@ -191,7 +200,9 @@ cores: list[Function] = [
     test_ife2,
     test_ife3,
     test_ife4,
-    test_array,
+    test_array1,
+    test_array2,
+    test_array3,
     nmse3_1,
     instCurrent,
     azimuth

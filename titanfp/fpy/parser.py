@@ -121,11 +121,19 @@ class FPyParser:
                 return Assign(name, self._parse_expr(value), ty_ann)
             case ast.Assign(targets=targets, value=value):
                 match targets:
+                    case []:
+                        raise FPyParserError(self.source, 'Unexpected assignment', st)
                     case [t0]:
-                        name = self._parse_assign_lhs(t0, st)
-                        return Assign(name, self._parse_expr(value))
-                    case _:
-                        raise FPyParserError(self.source, 'Unpacking assignment not a valid FPy statement', st)
+                        binding = self._parse_assign_lhs(t0, st)
+                        match binding:
+                            case VarBinding():
+                                return Assign(binding, self._parse_expr(value))
+                            case TupleBinding():
+                                return TupleAssign(binding, self._parse_expr(value))
+                            case _:
+                                raise FPyParserError(self.source, 'Unexpected binding type', st)
+                    case ts:
+                        raise FPyParserError(self.source, 'Multiple assignments unsupported', st)
             case ast.If(test=test, body=body, orelse=orelse):
                 cond = self._parse_expr(test)
                 ift = self._parse_statements(body)
@@ -298,7 +306,10 @@ class FPyParser:
     def _parse_assign_lhs(self, target: ast.expr, st: ast.stmt):
         match target:
             case ast.Name(id=id):
-                return id
+                return VarBinding(id)
+            case ast.Tuple(elts=elts):
+                bindings = [self._parse_assign_lhs(elt, st) for elt in elts]
+                return TupleBinding(*bindings)
             case _:
                 raise FPyParserError(self.source, 'FPy expects an identifier', target, st)
 

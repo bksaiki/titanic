@@ -377,6 +377,26 @@ class Compare(Expr):
         self.ops = ops
         self.children = children
 
+# Bindings
+
+class Binding(Ast):
+    """FPy node: abstract binding"""
+    pass
+
+class VarBinding(Binding):
+    """FPy node: single-variable binding"""
+    name: str
+    
+    def __init__(self, name: str):
+        self.name = name
+
+class TupleBinding(Binding):
+    """FPy node: tuple binding"""
+    bindings: list[Binding]
+
+    def __init__(self, *bindings: Binding):
+        self.bindings = list(bindings)
+
 # Statements
 
 class Stmt(Ast):
@@ -390,15 +410,33 @@ class Block(Stmt):
         self.stmts = stmts
 
 class Assign(Stmt):
-    """FPy node: assignment"""
-    name: str
+    """FPy node: assignment to a single variable"""
+    var: VarBinding
     val: Expr
     ann: Optional[TypeAnn]
 
-    def __init__(self, name: str, val: Expr, ann: Optional[TypeAnn] = None):
-        self.name = name
+    def __init__(self, var: VarBinding, val: Expr, ann: Optional[TypeAnn] = None):
+        self.var = var
         self.val = val
         self.ann = ann
+
+class TupleAssign(Stmt):
+    """FPy node: assignment to a tuple"""
+    binding: TupleBinding
+    val: Expr
+
+    def __init__(self, binding: TupleBinding, val: Expr):
+        self.binding = binding
+        self.val = val
+
+class MultiAssign(Stmt):
+    """FPy node: assignment to multiple values"""
+    bindings: list[Binding]
+    val: Expr
+
+    def __init__(self, bindings: list[Binding], val: Expr):
+        self.bindings = bindings
+        self.val = val
 
 class IfStmt(Stmt):
     """FPy node: if statement"""

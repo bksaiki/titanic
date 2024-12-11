@@ -101,6 +101,19 @@ def _compile_expr(e: Expr) -> fpc.Expr:
             return fpc.Digits(m, exp, base)
         case _:
             raise NotImplementedError(e)
+        
+def _make_tuple_binding(tuple_id: str, binding: TupleBinding, pos: list[int]):
+    tuple_binds: list[tuple[str, fpc.Expr]] = []
+    for i, bind in enumerate(binding.bindings):
+        match bind:
+            case TupleBinding():
+                tuple_binds += _make_tuple_binding(tuple_id, bind, [i, *pos])
+            case VarBinding(name=name):
+                idxs = [fpc.Integer(idx) for idx in [i, *pos]]
+                tuple_binds.append((name, fpc.Ref(fpc.Var(tuple_id), *idxs)))
+            case _:
+                raise NotImplementedError('unexpected binding', bind)
+    return tuple_binds
 
 def _compile_block(block: Block):
    match block.stmts:
@@ -108,8 +121,13 @@ def _compile_block(block: Block):
             return _compile_statement(stmt)
         case [stmt, *stmts]:
             match stmt:
-                case Assign(name=name, val=val):
-                    return fpc.Let([(name, _compile_expr(val))], _compile_block(Block(stmts)))
+                case Assign(var=var, val=val):
+                    return fpc.Let([(var.name, _compile_expr(val))], _compile_block(Block(stmts)))
+                case TupleAssign(binding=binding, val=val):
+                    tuple_id = 't0' # TODO: needs to be a unique identifier
+                    tuple_bind = (tuple_id, _compile_expr(val))
+                    destruct_bindings = _make_tuple_binding(tuple_id, binding, [])
+                    return fpc.Let([tuple_bind] + destruct_bindings, _compile_block(Block(stmts)))
                 case _:
                     raise NotImplementedError('unexpected statement', stmt)
         case _:
