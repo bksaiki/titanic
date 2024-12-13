@@ -12,8 +12,13 @@ class BaseVisitor(ABC):
     # Expressions
 
     @abstractmethod
-    def _visit_number(self, e: Num, ctx: Any):
-        """Visitor method for `Num` nodes."""
+    def _visit_decnum(self, e: Decnum, ctx: Any):
+        """Visitor method for `Decnum` nodes."""
+        raise NotImplementedError('virtual method')
+
+    @abstractmethod
+    def _visit_integer(self, e: Integer, ctx: Any):
+        """Visitor method for `Integer` nodes."""
         raise NotImplementedError('virtual method')
 
     @abstractmethod
@@ -54,8 +59,10 @@ class BaseVisitor(ABC):
     def _visit_expr(self, e: Expr, ctx: Any):
         """Dynamic dispatch for all `Expr` nodes."""
         match e:
-            case Num():
-                return self._visit_number(e, ctx)
+            case Decnum():
+                return self._visit_decnum(e, ctx)
+            case Integer():
+                return self._visit_integer(e, ctx)
             case Digits():
                 return self._visit_digits(e, ctx)
             case Var():
@@ -133,4 +140,8 @@ class BaseVisitor(ABC):
 
 class ReduceVisitor(BaseVisitor):
     """Visitor base class for reducing FPy programs to a value."""
-    pass
+
+class TransformVisitor(BaseVisitor):
+    """Visitor base class for transforming FPy programs"""
+
+

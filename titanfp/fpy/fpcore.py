@@ -55,13 +55,11 @@ class FPCoreCompiler(ReduceVisitor):
     #######################################################
     # Expressions
 
-    def _visit_number(self, e, ctx):
-        if isinstance(e.val, int):
-            return fpc.Integer(e.val)
-        elif isinstance(e.val, float):
-            return fpc.Decnum(str(e.val))
-        else:
-            raise NotImplementedError(e)
+    def _visit_decnum(self, e, ctx):
+        return fpc.Decnum(e.val)
+    
+    def _visit_integer(self, e, ctx):
+        return fpc.Integer(e.val)
     
     def _visit_digits(self, e, ctx):
         return fpc.Digits(e.m, e.e, e.b)

@@ -16,3 +16,6 @@ Use the hints:
 The names in this module must be imported directly into
 the importing namespace.
 """
+
+class Real(object):
+    """Virtual object representing any real FPy term."""

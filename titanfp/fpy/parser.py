@@ -225,8 +225,8 @@ class FPyParser:
                     case float():
                         if v.is_integer():
                             return Integer(int(v))
-                        else:
-                            return Num(v)
+                        else: # TODO: inf or nan
+                            return Decnum(str(v))
                     case _:
                         raise FPyParserError(self.source, 'Unsupported constant', e)
             case ast.Name(id=id):
@@ -242,13 +242,6 @@ class FPyParser:
                 match self._parse_expr(e.operand):
                     case Integer(val=val):
                         return Integer(-val)
-                    case Num(val=val):
-                        if isinstance(val, str):
-                            return Num(f'-{val}')
-                        elif isinstance(val, float):
-                            return Num(-val)
-                        else:
-                            raise NotImplementedError('unary minus', val)
                     case n:
                         return Neg(n)
             case _:

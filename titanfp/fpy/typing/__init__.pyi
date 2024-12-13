@@ -1,4 +1,4 @@
-from abc import ABC
+"""Typing hints for FPy programs"""
 
 Real = int | float
 

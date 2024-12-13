@@ -46,19 +46,19 @@ class Var(ValueExpr):
     def __init__(self, name: str):
         self.name = name
 
-class Num(ValueExpr):
-    """FPy node: numerical constant"""
-    val: str | int | float
+class Decnum(ValueExpr):
+    """FPy node: (decimal) number"""
+    val: str
 
-    def __init__(self, val: str | int | float):
+    def __init__(self, val: str):
         self.val = val
 
-class Integer(Num):
+class Integer(ValueExpr):
     """FPy node: numerical constant (integer)"""
     val: int
 
     def __init__(self, val: int):
-        super().__init__(val)
+        self.val = val
 
 class Digits(ValueExpr):
     """FPy node: numerical constant in scientific notation"""
