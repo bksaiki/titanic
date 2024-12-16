@@ -111,7 +111,7 @@ class TernaryExpr(NaryExpr):
 class UnknownCall(NaryExpr):
     """FPy node: abstract application"""
 
-class ArrayExpr(NaryExpr):
+class Array(NaryExpr):
     """FPy node: array expression"""
     name = 'array'
 

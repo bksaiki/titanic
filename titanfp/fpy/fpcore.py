@@ -1,14 +1,10 @@
 """Compilation from FPy to FPCore"""
 
-from typing import Callable, Type
-
 from ..fpbench import fpcast as fpc
 from . import fpcore_ops as ops
 
 from .fpyast import *
-from .gensym import Gensym
 from .visitor import ReduceVisitor
-
 
 class FPCoreCompiler(ReduceVisitor):
     """
@@ -83,7 +79,7 @@ class FPCoreCompiler(ReduceVisitor):
         return cls(*args)
     
     def _visit_compare(self, e, ctx):
-        assert e.ops != [], "should not be empty"
+        assert e.ops != [], 'should not be empty'
         match e.ops:
             case [op]:
                 # 2-argument case: just compile
@@ -140,23 +136,37 @@ class FPCoreCompiler(ReduceVisitor):
     #######################################################
     # Statements
 
-    def _visit_assign(self, stmt, stmts, ctx):
+    def _visit_assign(self, stmt, ctx):
         bindings = [(stmt.var.name, self._visit(stmt.val, ctx))]
-        return fpc.Let(bindings, self._visit_statements(stmts, ctx))
+        return (fpc.Let, bindings)
     
-    def _visit_tuple_assign(self, stmt, stmts, ctx):
+    def _visit_tuple_assign(self, stmt, ctx):
         tuple_id = 't0' # TODO: needs to be a unique identifier
         tuple_bind = (tuple_id, self._visit(stmt.val, ctx))
         destruct_bindings = self._make_tuple_binding(tuple_id, stmt.binding, [])
-        return fpc.Let([tuple_bind] + destruct_bindings, self._visit_statements(stmts, ctx))
+        return (fpc.Let, [tuple_bind] + destruct_bindings)
     
-    def _visit_return(self, stmt, stmts, ctx):
-        assert stmts == [], "must be the last statement of a block"
+    def _visit_return(self, stmt, ctx):
         return self._visit(stmt.e, ctx)
-
-    # overload to get typing hint
-    def _visit_statements(self, stmts, ctx) -> fpc.Expr:
-        return super()._visit_statements(stmts, ctx)
+    
+    def _visit_block(self, stmt, ctx):
+        def _build(stmts: list[Stmt]) -> fpc.Expr:
+            assert stmts != [], 'block is unexpectedly empty'
+            match stmts:
+                case [Assign() as hd, *tl]:
+                    cls, bindings = self._visit_assign(hd, ctx)
+                    return cls(bindings, _build(tl))
+                case [TupleAssign() as hd, *tl]:
+                    cls, bindings = self._visit_tuple_assign(hd, ctx)
+                    return cls(bindings, _build(tl)) 
+                case [Return() as hd, *tl]:
+                    assert tl == [], 'return statements must be at the end of blocks'
+                    return self._visit_return(hd, ctx)
+                case [Block(), _]:
+                    raise RuntimeError('cannot have an internal block', stmt)
+                case _:
+                    raise NotImplementedError('unreachable')
+        return _build(stmt.stmts)
 
     #######################################################
     # Functions
@@ -167,13 +177,7 @@ class FPCoreCompiler(ReduceVisitor):
         props = func.ctx.props
 
         # compile body
-        match func.body:
-            case Return():
-                e = self._visit(func.body, ctx)
-            case Block(stmts=stmts):
-                e = self._visit_statements(stmts, ctx)
-            case _:
-                raise NotImplementedError('unexpected function body', func.body)
+        e = self._visit(func.body, None)
 
         return fpc.FPCore(
             inputs=args,
@@ -183,8 +187,11 @@ class FPCoreCompiler(ReduceVisitor):
             name=func.name,
             pre=func.pre
         )
+    
+    #######################################################
+    # Entry-point
 
-    def compile(self, f: Function):
+    def visit(self, f: Function):
         if not isinstance(f, Function):
             raise TypeError(f'expected Function: {f}')
         return self._visit_function(f, None)
@@ -192,4 +199,4 @@ class FPCoreCompiler(ReduceVisitor):
 
 def fpy_to_fpcore(func: Function):
     compiler = FPCoreCompiler()
-    return compiler.compile(func)
+    return compiler.visit(func)
