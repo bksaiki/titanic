@@ -15,106 +15,159 @@ used after the `if` statement
 - any variables must be defined before it is used
 """
 
-from enum import Enum
+from typing import Self
 
 from ..fpyast import *
 from ..visitor import Visitor
+from ..utils import FPySyntaxError
 
+class _VarEnv:
+    """Bound variables in a scope."""
+    _vars: dict[str, bool]
 
-class FPySyntaxError(Exception):
-    """Syntax error for FPy programs."""
-    pass
+    def __init__(self):
+        self._vars = dict()
+
+    def __contains__(self, item):
+        return item in self._vars
+
+    def __getitem__(self, key):
+        return self._vars[key]
+
+    def add(self, var: str):
+        """Creates a new scope by copying this scopye and adding `var` to it."""
+        copy = _VarEnv()
+        copy._vars = self._vars.copy()
+        copy._vars[var] = True
+        return copy
+    
+    def merge(self, other: Self):
+        copy = _VarEnv()
+        for name in set(list(self._vars) + list(other._vars)):
+            copy._vars[name] = self._vars.get(name, False) and other._vars.get(name, False)
+        return copy
+
 
 class SyntaxCheck(Visitor):
     """Visitor implementing syntax checking."""
 
-    _CtxType = tuple[bool, dict[str, str]]
+    _CtxType = tuple[bool, _VarEnv]
     """
     Type of the `ctx` visitor argument.
 
     Specifically,
     ```
-    is_top, scope = ctx
+    is_top, env = ctx
     ```
     with
     ```
     is_top: bool
-    scope: dict[str, str]
+    env: dict[str, str]
     ```
     where
     - `is_top`: is `True` if the visitor is at the top block of the function;
-    - `scope`: map from name to variable info, representing all variables in scope
+    - `env`: map from name to variable info, representing all variables in scope
     """
 
+    def _visit_binding(self, binding: Binding, env: _VarEnv):
+        match binding:
+            case VarBinding():
+                return env.add(binding.name)
+            case TupleBinding():
+                for elt in binding.bindings:
+                    env = self._visit_binding(elt, env)
+                return env
+            case _:
+                raise NotImplementedError('unreachable', env)
+
     def _visit_decnum(self, e, ctx: _CtxType):
-        pass
+        _, env = ctx
+        return env
 
     def _visit_integer(self, e, ctx: _CtxType):
-        pass
+        _, env = ctx
+        return env
 
     def _visit_digits(self, e, ctx: _CtxType):
-        pass
+        _, env = ctx
+        return env
 
     def _visit_variable(self, e, ctx: _CtxType):
-        _, scope = ctx
-        if e.name not in scope:
+        _, env = ctx
+        if e.name not in env:
             raise FPySyntaxError(f'unbound variable \'{e.name}\'')
+        if not env[e.name]:
+            raise FPySyntaxError(f'variable not defined on along all paths \'{e.name}\'')
+        return env
 
     def _visit_unknown(self, e, ctx: _CtxType):
+        _, env = ctx
         for c in e.children:
             self._visit(c, ctx)
+        return env
 
     def _visit_nary_expr(self, e, ctx: _CtxType):
+        _, env = ctx
         for c in e.children:
             self._visit(c, ctx)
+        return env
 
     def _visit_compare(self, e, ctx: _CtxType):
+        _, env = ctx
         for c in e.children:
             self._visit(c, ctx)
+        return env
 
     def _visit_array(self, e, ctx: _CtxType):
+        _, env = ctx
         for c in e.children:
             self._visit(c, ctx)
+        return env
 
     def _visit_if_expr(self, e, ctx: _CtxType):
+        _, env = ctx
         self._visit(e.cond, ctx)
         self._visit(e.ift, ctx)
         self._visit(e.iff, ctx)
+        return env
 
     def _visit_assign(self, stmt, ctx: _CtxType):
-        _, scope = ctx
+        _, env = ctx
         self._visit(stmt.val, ctx)
-        return {**scope, stmt.var.name: stmt.var.name }
+        return self._visit_binding(stmt.var, env)
 
     def _visit_tuple_assign(self, stmt, ctx: _CtxType):
-        raise NotImplementedError
+        _, env = ctx
+        self._visit(stmt.val, ctx)
+        return self._visit_binding(stmt.binding, env)
     
     def _visit_if_stmt(self, stmt, ctx: _CtxType):
         self._visit(stmt.cond, ctx)
-        self._visit(stmt.ift, ctx)
-        self._visit(stmt.iff, ctx)
+        ift_env = self._visit(stmt.ift, ctx)
+        iff_env = self._visit(stmt.iff, ctx)
+        return ift_env.merge(iff_env)
 
     def _visit_return(self, stmt, ctx: _CtxType):
-        self._visit(stmt.e, ctx)
+        return self._visit(stmt.e, ctx)
 
     def _visit_block(self, stmt, ctx: _CtxType):
-        is_top, scope = ctx
+        is_top, env = ctx
         has_return = False
         for i, st in enumerate(stmt.stmts):
             match st:
                 case Assign():
-                    scope = self._visit_assign(st, (False, scope))
+                    env = self._visit_assign(st, (False, env))
                 case TupleAssign():
-                    scope = self._visit_tuple_assign(st, (False, scope))
+                    env = self._visit_tuple_assign(st, (False, env))
                 case Return():
                     if not is_top:
                         raise FPySyntaxError(f'return statement can only be at the top level')
                     if i != len(stmt.stmts) - 1:
                         raise FPySyntaxError(f'return statement must be a the end of a statement')
-                    self._visit(st, (False, scope))
+                    env = self._visit(st, (False, env))
                     has_return = True
                 case IfStmt():
-                    self._visit(st, (False, scope))
+                    env = self._visit(st, (False, env))
                 case Block():
                     raise NotImplementedError('cannot have an internal block', stmt)
                 case _:
@@ -122,16 +175,20 @@ class SyntaxCheck(Visitor):
 
         if is_top and not has_return:
             raise FPySyntaxError(f'must have a return statement at the top-level')
+        return env
     
     def _visit_function(self, func, ctx: _CtxType):
-        self._visit(func.body, (True, dict()))
+        env = _VarEnv()
+        for arg in func.args:
+            env = env.add(arg.name)
+        self._visit(func.body, (True, env))
 
     # To override typing hint
-    def _visit(self, e, ctx: _CtxType) -> None:
+    def _visit(self, e, ctx: _CtxType) -> _VarEnv:
         return super()._visit(e, ctx)
 
     def visit(self, func: Function):
         if not isinstance(func, Function):
             raise TypeError(f'visit() argument 1 must be Function, not {func}')
-        self._visit(func, (False, dict()))
+        self._visit(func, (False, _VarEnv()))
 

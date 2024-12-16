@@ -174,16 +174,6 @@ def test_array3():
     x, y = 1.0, 2.0
     return x + y
 
-@fpcore
-def if_stmt():
-    x = 1.0
-    if x > 0:
-        return 1
-    elif x < 0:
-        return -1
-    else:
-        return 0
-
 ### Compile loop
 
 cores: list[Function] = [

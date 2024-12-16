@@ -52,9 +52,6 @@ class FPyParserError(Exception):
         self.where = where
         self.ctx = ctx
 
-    def __repr__(self):
-        return 'bad'
-
 
 class FPyParser:
     """
