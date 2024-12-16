@@ -100,6 +100,11 @@ class BaseVisitor(ABC):
         raise NotImplementedError('virtual method')
     
     @abstractmethod
+    def _visit_if_stmt(self, stmt: IfStmt, ctx: Any):
+        """Visitor method for `IfStmt` nodes."""
+        raise NotImplementedError('virtual method')
+    
+    @abstractmethod
     def _visit_block(self, stmt: Block, ctx: Any):
         """Visitor method for `Block` nodes."""
         raise NotImplementedError('virtual method')
@@ -113,6 +118,8 @@ class BaseVisitor(ABC):
                 return self._visit_tuple_assign(stmt, ctx)
             case Return():
                 return self._visit_return(stmt, ctx)
+            case IfStmt():
+                return self._visit_if_stmt(stmt, ctx)
             case Block():
                 return self._visit_block(stmt, ctx)
             case _:
@@ -148,12 +155,18 @@ class BaseVisitor(ABC):
     def visit(self, *args, **kwargs):
         raise NotImplementedError('virtual method')
 
+# Derived visitor types
+
+class Visitor(BaseVisitor):
+    """Visitor base class for scanning an FPy program."""
 
 class ReduceVisitor(BaseVisitor):
     """Visitor base class for reducing FPy programs to a value."""
 
 class TransformVisitor(BaseVisitor):
     """Visitor base class for transforming FPy programs"""
+
+# Default visitor types
 
 class DefaultTransformVisitor(TransformVisitor):
     """Default transform visitor: identity operation on an FPy program."""

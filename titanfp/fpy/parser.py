@@ -6,6 +6,7 @@ import inspect
 from functools import reduce
 from typing import cast, Callable
 
+from .analysis import SyntaxCheck
 from .fpyast import *
 from .ops import op_info, op_is_defined
 from .utils import raise_type_error
@@ -100,16 +101,9 @@ class FPyParser:
         block = self._parse_statements(func.body)
         return Function(args, block, ident=func.name)
 
-    def _parse_statements(self, sts: list[ast.stmt]):
-        assert sts != []
-        match sts:
-            case [st]:
-                return self._parse_statement(st)
-            case _:
-                stmts: list[Stmt] = []
-                for st in sts:
-                    stmts.append(self._parse_statement(st))
-                return Block(stmts)
+    def _parse_statements(self, stmts: list[ast.stmt]):
+        assert stmts != []
+        return Block([self._parse_statement(st) for st in stmts])
 
     def _parse_statement(self, st: ast.stmt) -> Stmt:
         match st:
@@ -352,6 +346,8 @@ def fpcore(*args, **kwargs):
         # TODO: static analysis:
         #  - unknown variables
         #  - type checking
+        scheck = SyntaxCheck()
+        scheck.visit(core)
 
         return core
 
