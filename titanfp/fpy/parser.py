@@ -7,7 +7,7 @@ from functools import reduce
 from typing import cast, Callable
 
 from .fpyast import *
-from . import parser_ops as ops
+from .ops import op_info, op_is_defined
 from .utils import raise_type_error
 
 def _ipow(expr: Expr, n: int):
@@ -188,27 +188,13 @@ class FPyParser:
                 if name == 'digits':
                     # special case: digits
                     return self._parse_digits(e, args)
-                elif name in ops.unary_table:
-                    # unary operator
-                    if len(args) != 1:
-                        raise FPyParserError(self.source, f'`{name}` expects 1 argument, given {len(args)}', e)
-                    cls = ops.unary_table[name]
-                    return cls(self._parse_expr(args[0]))
-                elif name in ops.binary_table:
-                    # binary operator
-                    if len(args) != 2:
-                        raise FPyParserError(self.source, f'`{name}` expects 2 argument, given {len(args)}', e)
-                    cls = ops.binary_table[name]
-                    return cls(self._parse_expr(args[0]), self._parse_expr(args[1]))
-                elif name in ops.ternary_table:
-                    # ternary operator
-                    if len(args) != 3:
-                        raise FPyParserError(self.source, f'`{name}` expects 3 argument, given {len(args)}', e)
-                    cls = ops.ternary_table[name]
-                    x0 = self._parse_expr(args[0])
-                    x1 = self._parse_expr(args[1])
-                    x2 = self._parse_expr(args[2])
-                    return cls(x0, x1, x2)
+                elif op_is_defined(name):
+                    # reserved FPy operator
+                    info = op_info(name)
+                    assert info is not None, "unexpectedly None"
+                    if len(args) != info.arity:
+                        raise FPyParserError(self.source, f'`{name}` expects {info.arity} argument, given {len(args)}', e)
+                    return info.fpy(*[self._parse_expr(c) for c in args])
                 else:
                     # not a defined operator
                     if self.strict:

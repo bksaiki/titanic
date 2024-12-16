@@ -1,7 +1,7 @@
 """Compilation from FPy to FPCore"""
 
 from ..fpbench import fpcast as fpc
-from . import fpcore_ops as ops
+from .ops import op_info
 
 from .fpyast import *
 from .visitor import ReduceVisitor
@@ -72,11 +72,10 @@ class FPCoreCompiler(ReduceVisitor):
         return fpc.UnknownOperator(e.name, args)
     
     def _visit_nary_expr(self, e, ctx):
-        if type(e) not in ops.known_table:
-            raise NotImplementedError('no compilation method for', e)        
-        cls = ops.known_table[type(e)]
-        args = [self._visit(c, ctx) for c in e.children]
-        return cls(*args)
+        info = op_info(e.name)
+        if info is None:
+            raise NotImplementedError('no compilation method for', e)
+        return info.fpc(*[self._visit(c, ctx) for c in e.children])
     
     def _visit_compare(self, e, ctx):
         assert e.ops != [], 'should not be empty'

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from .fpyast import *
-from .parser_ops import *
+from .ops import op_info
 
 class BaseVisitor(ABC):
     """Visitor base class for FPy programs"""
@@ -180,20 +180,28 @@ class DefaultTransformVisitor(TransformVisitor):
         return UnknownCall(*[self._visit(c, ctx) for c in e.children])
 
     def _visit_nary_expr(self, e, ctx):
-        if e.name in unary_table:
-            arg0 = self._visit(e.children[0], ctx)
-            return unary_table[e.name](arg0)
-        elif e.name in binary_table:
-            arg0 = self._visit(e.children[0], ctx)
-            arg1 = self._visit(e.children[1], ctx)
-            return binary_table[e.name](arg0, arg1)
-        elif e.name in ternary_table:
-            arg0 = self._visit(e.children[0], ctx)
-            arg1 = self._visit(e.children[1], ctx)
-            arg2 = self._visit(e.children[2], ctx)
-            return ternary_table[e.name](arg0, arg1, arg2)
-        else:
+        info = op_info(e.name)
+        if info is None:
             raise NotImplementedError('unreachable', e)
+        
+        match info.arity:
+            case 1:
+                arg0 = self._visit(e.children[0], ctx)
+                return info.fpc(arg0)
+            case 2:
+                arg0 = self._visit(e.children[0], ctx)
+                arg1 = self._visit(e.children[1], ctx)
+                return info.fpc(arg0, arg1)
+            case 3:
+                arg0 = self._visit(e.children[0], ctx)
+                arg1 = self._visit(e.children[1], ctx)
+                arg2 = self._visit(e.children[2], ctx)
+                return info.fpc(arg0, arg1, arg2)
+            case None:
+                args = [self._visit(c, ctx) for c in e.children]
+                return info.fpc(*args)
+            case _:
+                raise NotImplementedError('unreachable', e)
 
     def _visit_compare(self, e, ctx):
         ops = [op for op in e.ops]

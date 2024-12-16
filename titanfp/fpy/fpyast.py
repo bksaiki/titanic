@@ -152,7 +152,9 @@ class Fma(TernaryExpr):
 
 class Neg(UnaryExpr):
     """FPy node: negation"""
-    name: str = '-'
+    # to avoid confusion with subtraction
+    # this should not be the display name
+    name: str = 'neg'
 
 class Copysign(BinaryExpr):
     """FPy node: copysign"""
