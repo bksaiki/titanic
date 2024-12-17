@@ -230,29 +230,32 @@ class DefaultTransformVisitor(TransformVisitor):
     #######################################################
     # Statements
 
-    def _copy_var_binding(self, binding: VarBinding):
-        return VarBinding(binding.name)
-
-    def _copy_tuple_binding(self, binding: TupleBinding):
-        bindings: list[Binding] = []
-        for bind in binding.bindings:
-            match bind:
-                case VarBinding():
-                    bindings.append(self._copy_var_binding(bind))
-                case TupleBinding():
-                    bindings.append(self._copy_tuple_binding(bind))
-                case _:
-                    raise NotImplementedError('unexpected', bind)
-        return TupleBinding(*bindings)
-
-    def _visit_assign(self, stmt, stmts, ctx):
-        return Assign(self._copy_var_binding(stmt.var), self._visit(stmt.val, ctx), stmt.ann)
+    def _copy_binding(self, binding: Binding):
+        match binding:
+            case VarBinding():
+                return VarBinding(binding.name)
+            case TupleBinding():
+                return TupleBinding(*[self._copy_binding(b) for b in binding.bindings])
+            case _:
+                raise NotImplementedError('unexpected', binding)
     
-    def _visit_tuple_assign(self, stmt, stmts, ctx):
-        return TupleAssign(self._copy_tuple_binding(stmt.binding), self._visit(stmt.val, ctx))
+    def _visit_assign(self, stmt, ctx):
+        return Assign(self._copy_binding(stmt.var), self._visit(stmt.val, ctx), stmt.ann)
 
-    def _visit_return(self, stmt, stmts, ctx):
+    def _visit_tuple_assign(self, stmt, ctx):
+        return TupleAssign(self._copy_binding(stmt.binding), self._visit(stmt.val, ctx))
+
+    def _visit_return(self, stmt, ctx):
         return Return(self._visit(stmt.e, ctx))
+
+    def _visit_if_stmt(self, stmt, ctx):
+        cond = self._visit(stmt.cond, ctx)
+        ift = self._visit(stmt.ift, ctx)
+        iff = self._visit(stmt.iff, ctx)
+        return IfStmt(cond, ift, iff)
+
+    def _visit_block(self, stmt, ctx):
+        return Block([self._visit(s) for s in stmt.stmts])
 
     #######################################################
     # Function

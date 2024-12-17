@@ -6,7 +6,7 @@ import inspect
 from functools import reduce
 from typing import cast, Callable
 
-from .analysis import SyntaxCheck
+from .analysis import *
 from .fpyast import *
 from .ops import op_info, op_is_defined
 from .utils import raise_type_error
@@ -345,6 +345,9 @@ def fpcore(*args, **kwargs):
         #  - type checking
         scheck = SyntaxCheck()
         scheck.visit(core)
+
+        fv = FreeVars()
+        print('fvs', fv.visit(core))
 
         return core
 

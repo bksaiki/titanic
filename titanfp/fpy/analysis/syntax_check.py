@@ -53,7 +53,7 @@ class SyntaxCheck(Visitor):
 
     _CtxType = tuple[bool, _VarEnv]
     """
-    Type of the `ctx` visitor argument.
+    Type of the `ctx` argument to each visitor method.
 
     Specifically,
     ```
@@ -78,7 +78,7 @@ class SyntaxCheck(Visitor):
                     env = self._visit_binding(elt, env)
                 return env
             case _:
-                raise NotImplementedError('unreachable', env)
+                raise NotImplementedError('unreachable', binding)
 
     def _visit_decnum(self, e, ctx: _CtxType):
         _, env = ctx
@@ -183,7 +183,7 @@ class SyntaxCheck(Visitor):
             env = env.add(arg.name)
         self._visit(func.body, (True, env))
 
-    # To override typing hint
+    # override typing hint
     def _visit(self, e, ctx: _CtxType) -> _VarEnv:
         return super()._visit(e, ctx)
 
