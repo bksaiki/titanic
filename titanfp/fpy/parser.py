@@ -94,7 +94,7 @@ class FPyParser:
                 raise FPyParserError(self.source, 'FPy requires argument annotations', arg)
             ann =  self._parse_annotation(arg.annotation, arg)
             args.append(Argument('_' if arg.arg is None else arg.arg, ann))
-        
+
         block = self._parse_statements(func.body)
         return Function(args, block, ident=func.name)
 
@@ -358,3 +358,7 @@ def fpcore(*args, **kwargs):
             return wrap(func)
         case _:
             raise TypeError('fpcore() expected only 0 or 1 positional arguments')
+
+
+fv = FreeVars()
+print(fv.visit(Add(Var('x'), Var('y'))))

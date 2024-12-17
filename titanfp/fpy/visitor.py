@@ -88,25 +88,20 @@ class BaseVisitor(ABC):
     def _visit_assign(self, stmt: Assign, ctx: Any):
         """Visitor method for `Assign` nodes."""
         raise NotImplementedError('virtual method')
-    
+
     @abstractmethod
     def _visit_tuple_assign(self, stmt: TupleAssign, ctx: Any):
         """Visitor method for `TupleAssign` nodes."""
         raise NotImplementedError('virtual method')
-    
+
     @abstractmethod
     def _visit_return(self, stmt: Return, ctx: Any):
         """Visitor method for `Return` nodes."""
         raise NotImplementedError('virtual method')
-    
+
     @abstractmethod
     def _visit_if_stmt(self, stmt: IfStmt, ctx: Any):
         """Visitor method for `IfStmt` nodes."""
-        raise NotImplementedError('virtual method')
-    
-    @abstractmethod
-    def _visit_block(self, stmt: Block, ctx: Any):
-        """Visitor method for `Block` nodes."""
         raise NotImplementedError('virtual method')
 
     def _visit_statement(self, stmt: Stmt, ctx: Any):
@@ -120,19 +115,22 @@ class BaseVisitor(ABC):
                 return self._visit_return(stmt, ctx)
             case IfStmt():
                 return self._visit_if_stmt(stmt, ctx)
-            case Block():
-                return self._visit_block(stmt, ctx)
             case _:
                 raise NotImplementedError('no visitor method for', stmt)
-    
+
+    @abstractmethod
+    def _visit_block(self, block: Block, ctx: Any):
+        """Visitor method for a list of `Stmt` nodes."""
+        raise NotImplementedError('virtual method')
+
     #######################################################
     # Functions
-    
+
     @abstractmethod
     def _visit_function(self, func: Function, ctx: Any):
         """Visitor for `fpyast.Function`."""
         raise NotImplementedError('virtual method')
-    
+
     #######################################################
     # Dynamic dispatch
 
@@ -145,6 +143,8 @@ class BaseVisitor(ABC):
                 return self._visit_statement(e, ctx)
             case Expr():
                 return self._visit_expr(e, ctx)
+            case Block():
+                return self._visit_block(e, ctx)
             case _:
                 raise NotImplementedError('no visitor method for', e)
             

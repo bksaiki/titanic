@@ -67,19 +67,20 @@ class FreeVars(ReduceVisitor):
         return cond_fvs.union(ift_fvs, iff_fvs)
 
     def _visit_assign(self, stmt, ctx: _CtxType):
-        return self._visit(stmt.val, ctx)
+        raise NotImplementedError('do not call directly')
 
     def _visit_tuple_assign(self, stmt, ctx: _CtxType):
-        return self._visit(stmt.val, ctx)
+        raise NotImplementedError('do not call directly')
 
     def _visit_return(self, stmt, ctx: _CtxType):
-        return self._visit(stmt.e, ctx)
+        raise NotImplementedError('do not call directly')
 
     def _visit_if_stmt(self, stmt, ctx: _CtxType):
-        cond_fvs = self._visit(stmt.cond, ctx)
-        ift_fvs = self._visit(stmt.ift, ctx)
-        iff_fvs = self._visit(stmt.iff, ctx)
-        return cond_fvs.union(ift_fvs, iff_fvs)
+        raise NotImplementedError('do not call directly')
+        # cond_fvs = self._visit(stmt.cond, ctx)
+        # ift_ctx, ift_fvs = self._visit_block(stmt.ift, ctx)
+        # iff_ctx, iff_fvs = self._visit_block(stmt.iff, ctx)
+        # return cond_fvs.union(ift_fvs, iff_fvs)
 
     def _visit_binding(self, binding: Binding, ctx: _CtxType) -> set[str]:
         match binding:
@@ -92,30 +93,34 @@ class FreeVars(ReduceVisitor):
             case _:
                 raise NotImplementedError('unreachable', binding)
 
-    def _visit_block(self, stmt, ctx: _CtxType):
+    def _visit_block(self, block, ctx: _CtxType) -> tuple[_CtxType, set[str]]:
         fvs: set[str] = set()
-        for st in stmt.stmts:
+        for st in block.stmts:
             match st:
                 case Assign():
-                    fvs = fvs.union(self._visit(st, ctx))
+                    fvs = fvs.union(self._visit(st.val, ctx))
                     ctx = self._visit_binding(st.var, ctx)
                 case TupleAssign():
-                    fvs = fvs.union(self._visit(st, ctx))
+                    fvs = fvs.union(self._visit(st.val, ctx))
                     ctx = self._visit_binding(st.binding, ctx)
                 case Return():
-                    fvs = fvs.union(self._visit(st, ctx))
+                    fvs = fvs.union(self._visit(st.e, ctx))
                 case IfStmt():
-                    fvs = fvs.union(self._visit(st, ctx))
+                    cond_fvs = self._visit(st.cond, ctx)
+                    ift_ctx, ift_fvs = self._visit_block(st.ift, ctx)
+                    iff_ctx, iff_fvs = self._visit_block(st.iff, ctx)
+                    fvs = fvs.union(cond_fvs, ift_fvs, iff_fvs)
+                    ctx = ift_ctx.intersection(iff_ctx)
                 case _:
                     raise NotImplementedError('unreachable', st)
-
-        return fvs
+        return ctx, fvs
 
     def _visit_function(self, func, ctx: _CtxType):
         new_ctx: set[str] = set()
         for arg in func.args:
             new_ctx.add(arg.name)
-        return self._visit(func.body, new_ctx)
+        _, fvs = self._visit_block(func.body, new_ctx)
+        return fvs
 
     # override typing hint
     def _visit(self, e, ctx: _CtxType) -> set[str]:

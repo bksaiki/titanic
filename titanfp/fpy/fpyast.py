@@ -404,7 +404,7 @@ class TupleBinding(Binding):
 class Stmt(Ast):
     """FPy node: abstract statement"""
 
-class Block(Stmt):
+class Block(Ast):
     """FPy node: list of statements"""
     stmts: list[Stmt]
 
@@ -443,10 +443,10 @@ class MultiAssign(Stmt):
 class IfStmt(Stmt):
     """FPy node: if statement"""
     cond: Expr
-    ift: Stmt
-    iff: Stmt
+    ift: Block
+    iff: Block
 
-    def __init__(self, cond: Expr, ift: Stmt, iff: Stmt):
+    def __init__(self, cond: Expr, ift: Block, iff: Block):
         self.cond = cond
         self.ift = ift
         self.iff = iff
@@ -466,11 +466,13 @@ class Context(Ast):
         self.props = props
 
 
+
+
 class Function(Ast):
     """FPy node: function"""
     ident: Optional[str]
     args: list[Argument]
-    body: Stmt
+    body: Block
     ctx: Context
 
     name: Optional[str]
@@ -479,7 +481,7 @@ class Function(Ast):
     def __init__(
         self,
         args: list[Argument],
-        body: Stmt,
+        body: Block,
         ctx: Context = Context(),
         ident: Optional[str] = None,
         name: Optional[str] = None,

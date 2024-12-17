@@ -151,7 +151,7 @@ class FPCoreCompiler(ReduceVisitor):
     def _visit_if_stmt(self, stmt, ctx):
         raise NotImplementedError
     
-    def _visit_block(self, stmt, ctx):
+    def _visit_block(self, block, ctx):
         def _build(stmts: list[Stmt]) -> fpc.Expr:
             assert stmts != [], 'block is unexpectedly empty'
             match stmts:
@@ -164,11 +164,9 @@ class FPCoreCompiler(ReduceVisitor):
                 case [Return() as hd, *tl]:
                     assert tl == [], 'return statements must be at the end of blocks'
                     return self._visit_return(hd, ctx)
-                case [Block(), _]:
-                    raise RuntimeError('cannot have an internal block', stmt)
                 case _:
                     raise NotImplementedError('unreachable')
-        return _build(stmt.stmts)
+        return _build(block.stmts)
 
     #######################################################
     # Functions

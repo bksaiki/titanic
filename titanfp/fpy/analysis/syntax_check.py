@@ -150,10 +150,10 @@ class SyntaxCheck(Visitor):
     def _visit_return(self, stmt, ctx: _CtxType):
         return self._visit(stmt.e, ctx)
 
-    def _visit_block(self, stmt, ctx: _CtxType):
+    def _visit_block(self, block, ctx: _CtxType):
         is_top, env = ctx
         has_return = False
-        for i, st in enumerate(stmt.stmts):
+        for i, st in enumerate(block.stmts):
             match st:
                 case Assign():
                     env = self._visit_assign(st, (False, env))
@@ -162,14 +162,12 @@ class SyntaxCheck(Visitor):
                 case Return():
                     if not is_top:
                         raise FPySyntaxError(f'return statement can only be at the top level')
-                    if i != len(stmt.stmts) - 1:
+                    if i != len(block.stmts) - 1:
                         raise FPySyntaxError(f'return statement must be a the end of a statement')
                     env = self._visit(st, (False, env))
                     has_return = True
                 case IfStmt():
                     env = self._visit(st, (False, env))
-                case Block():
-                    raise NotImplementedError('cannot have an internal block', stmt)
                 case _:
                     raise NotImplementedError('unreachable', st)
 
