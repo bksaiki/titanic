@@ -18,7 +18,7 @@ used after the `if` statement
 from typing import Self
 
 from ..fpyast import *
-from ..visitor import Visitor
+from ..visitor import Analysis
 from ..utils import FPySyntaxError
 
 class _VarEnv:
@@ -48,7 +48,7 @@ class _VarEnv:
         return copy
 
 
-class SyntaxCheck(Visitor):
+class SyntaxCheck(Analysis):
     """Visitor implementing syntax checking."""
 
     _CtxType = tuple[bool, _VarEnv]

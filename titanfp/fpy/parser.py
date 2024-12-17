@@ -340,14 +340,10 @@ def fpcore(*args, **kwargs):
 
         core.ctx = Context(props=kwargs)
 
-        # TODO: static analysis:
-        #  - unknown variables
-        #  - type checking
-        scheck = SyntaxCheck()
-        scheck.visit(core)
-
-        fv = FreeVars()
-        print('fvs', fv.visit(core))
+        # static analysis
+        SyntaxCheck().visit(core)
+        # TODO: type check
+        FreeVars().visit(core)
 
         return core
 
@@ -358,7 +354,3 @@ def fpcore(*args, **kwargs):
             return wrap(func)
         case _:
             raise TypeError('fpcore() expected only 0 or 1 positional arguments')
-
-
-fv = FreeVars()
-print(fv.visit(Add(Var('x'), Var('y'))))

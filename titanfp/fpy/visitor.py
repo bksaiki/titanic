@@ -134,7 +134,7 @@ class BaseVisitor(ABC):
     #######################################################
     # Dynamic dispatch
 
-    def _visit(self, e: Ast, ctx: Any):
+    def _visit(self, e: Expr | Stmt | Block | Function, ctx: Any):
         """Dynamic dispatch for all primary `AST` nodes."""
         match e:
             case Function():
@@ -157,8 +157,24 @@ class BaseVisitor(ABC):
 
 # Derived visitor types
 
-class Visitor(BaseVisitor):
-    """Visitor base class for scanning an FPy program."""
+class Analysis(BaseVisitor):
+    """Visitor base class for analyzing FPy programs."""
+
+    name: Optional[str]
+    """AST attribute name."""
+
+    record: bool
+    """Should the analyzer add attributes to the AST."""
+
+    def __init__(self, name: Optional[str] = None, record: bool = False):
+        self.name = name
+        self.record = record
+
+    def _visit(self, e, ctx):
+        val = super()._visit(e, ctx)
+        if self.name is not None and self.record:
+            e.attribs[self.name] = val
+        return val
 
 class ReduceVisitor(BaseVisitor):
     """Visitor base class for reducing FPy programs to a value."""

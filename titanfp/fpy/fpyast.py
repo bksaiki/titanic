@@ -35,15 +35,23 @@ class Argument(Ast):
 
 class Expr(Ast):
     """FPy node: abstract expression"""
+    attribs: dict[str, Any]
+
+    def __init__(self):
+        self.attribs = dict()
 
 class ValueExpr(Expr):
     """FPy node: abstract terminal"""
+
+    def __init__(self):
+        super().__init__()
 
 class Var(ValueExpr):
     """FPy node: variable"""
     name: str
 
     def __init__(self, name: str):
+        super().__init__()
         self.name = name
 
 class Decnum(ValueExpr):
@@ -51,6 +59,7 @@ class Decnum(ValueExpr):
     val: str
 
     def __init__(self, val: str):
+        super().__init__()
         self.val = val
 
 class Integer(ValueExpr):
@@ -58,6 +67,7 @@ class Integer(ValueExpr):
     val: int
 
     def __init__(self, val: int):
+        super().__init__()
         self.val = val
 
 class Digits(ValueExpr):
@@ -67,6 +77,7 @@ class Digits(ValueExpr):
     b: int
 
     def __init__(self, m: int, e: int, b: int):
+        super().__init__()
         self.m = m
         self.e = e
         self.b = b
@@ -78,6 +89,7 @@ class IfExpr(Expr):
     iff: Expr
 
     def __init__(self, cond: Expr, ift: Expr, iff: Expr):
+        super().__init__()
         self.cond = cond
         self.ift = ift
         self.iff = iff
@@ -88,6 +100,7 @@ class NaryExpr(Expr):
     children: list[Expr]
 
     def __init__(self, *children: Expr):
+        super().__init__()
         self.children = list(children)
 
 class UnaryExpr(NaryExpr):
@@ -110,6 +123,10 @@ class TernaryExpr(NaryExpr):
 
 class UnknownCall(NaryExpr):
     """FPy node: abstract application"""
+
+    def __init__(self, name: str, *children: Expr):
+        super().__init__(*children)
+        self.name = name
 
 class Array(NaryExpr):
     """FPy node: array expression"""
@@ -376,6 +393,7 @@ class Compare(Expr):
             raise TypeError('expected list of length >= 2', children)
         if not isinstance(ops, list) or len(ops) != len(children) - 1:
             raise TypeError(f'expected list of length >= {len(children)}', children)
+        super().__init__()
         self.ops = ops
         self.children = children
 
@@ -403,13 +421,19 @@ class TupleBinding(Binding):
 
 class Stmt(Ast):
     """FPy node: abstract statement"""
+    attribs: dict[str, Any]
+
+    def __init__(self):
+        self.attribs = dict()
 
 class Block(Ast):
     """FPy node: list of statements"""
     stmts: list[Stmt]
+    attribs: dict[str, Any]
 
     def __init__(self, stmts: list[Stmt]):
         self.stmts = stmts
+        self.attribs = dict()
 
 class Assign(Stmt):
     """FPy node: assignment to a single variable"""
@@ -418,6 +442,7 @@ class Assign(Stmt):
     ann: Optional[TypeAnn]
 
     def __init__(self, var: VarBinding, val: Expr, ann: Optional[TypeAnn] = None):
+        super().__init__()
         self.var = var
         self.val = val
         self.ann = ann
@@ -428,6 +453,7 @@ class TupleAssign(Stmt):
     val: Expr
 
     def __init__(self, binding: TupleBinding, val: Expr):
+        super().__init__()
         self.binding = binding
         self.val = val
 
@@ -437,6 +463,7 @@ class MultiAssign(Stmt):
     val: Expr
 
     def __init__(self, bindings: list[Binding], val: Expr):
+        super().__init__()
         self.bindings = bindings
         self.val = val
 
@@ -447,6 +474,7 @@ class IfStmt(Stmt):
     iff: Block
 
     def __init__(self, cond: Expr, ift: Block, iff: Block):
+        super().__init__()
         self.cond = cond
         self.ift = ift
         self.iff = iff
@@ -456,6 +484,7 @@ class Return(Stmt):
     e: Expr
 
     def __init__(self, e: Expr):
+        super().__init__()
         self.e = e
 
 class Context(Ast):
@@ -466,17 +495,15 @@ class Context(Ast):
         self.props = props
 
 
-
-
 class Function(Ast):
     """FPy node: function"""
     ident: Optional[str]
     args: list[Argument]
     body: Block
     ctx: Context
-
     name: Optional[str]
     pre: Optional[Self]
+    attribs: dict[str, Any]
 
     def __init__(
         self,
@@ -493,3 +520,4 @@ class Function(Ast):
         self.ctx = ctx
         self.name = name
         self.pre = pre
+        self.attribs = dict()
