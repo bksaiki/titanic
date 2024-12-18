@@ -103,6 +103,19 @@ def test_ife4():
   t = 4.0
   return 1.0 if (x + 1.0) < (y + 2.0) <= (z + 3.0) < (t + 4.0) else 0.0
 
+@fpcore
+def test_array1():
+    return (1.0, 2.0)
+
+@fpcore
+def test_array2():
+    return 1.0, 2.0, 3.0
+
+@fpcore
+def test_array3():
+    x, y = 1.0, 2.0
+    return x + y
+
 @fpcore(name='Test if statement')
 def test_if():
     if 0.0 < 1.0:
@@ -161,22 +174,10 @@ def azimuth(lat1: Real, lat2: Real, lon1: Real, lon2: Real):
     c_dLon = cos(dLon)
     return atan((c_lat2 * s_dLon) / ((c_lat1 * s_lat2) - (s_lat1 * c_lat2 * c_dLon)))
 
-@fpcore
-def test_array1():
-    return (1.0, 2.0)
-
-@fpcore
-def test_array2():
-    return 1.0, 2.0, 3.0
-
-@fpcore
-def test_array3():
-    x, y = 1.0, 2.0
-    return x + y
-
 ### Compile loop
 
 cores: list[Function] = [
+    # Tests
     test_simple1,
     test_simple2,
     test_decnum,
@@ -193,6 +194,8 @@ cores: list[Function] = [
     test_array1,
     test_array2,
     test_array3,
+    test_if,
+    # Examples
     nmse3_1,
     instCurrent,
     azimuth

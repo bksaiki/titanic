@@ -5,6 +5,7 @@ from .ops import op_info
 
 from .fpyast import *
 from .visitor import ReduceVisitor
+from .transform import *
 
 class FPCoreCompiler(ReduceVisitor):
     """
@@ -177,7 +178,7 @@ class FPCoreCompiler(ReduceVisitor):
         props = func.ctx.props
 
         # compile body
-        e = self._visit(func.body, None)
+        e = self._visit(func.body, ctx)
 
         return fpc.FPCore(
             inputs=args,
@@ -194,6 +195,11 @@ class FPCoreCompiler(ReduceVisitor):
     def visit(self, f: Function):
         if not isinstance(f, Function):
             raise TypeError(f'expected Function: {f}')
+
+        # Normalizing transformations
+        f = MergeIf().visit(f)
+
+
         return self._visit_function(f, None)
 
 

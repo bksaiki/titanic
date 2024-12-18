@@ -14,7 +14,7 @@ class Gensym(object):
 
     def __init__(self, *names: str):
         self.names = set(names)
-        self.counter = 1
+        self.counter = len(names)
 
     def __call__(self, prefix: str = 't'):
         """Generates a unique name with a given prefix."""

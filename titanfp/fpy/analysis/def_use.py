@@ -5,8 +5,6 @@ Computes the set of variables in scope for every node.
 For each of the variables, tracks the set of uses throughout the program.
 """
 
-from dataclasses import dataclass
-
 from ..fpyast import *
 from ..visitor import Analysis
 
@@ -24,18 +22,20 @@ class VarRecord:
     def record_use(self, where: Ast):
         self.uses.append(where)
 
-class _Ctx:
-    """Context type for `DefUse` visitor methods."""
-    env: dict[str, VarRecord]
+DefUseEnv = dict[str, VarRecord]
 
-    def __init__(self, env: Optional[dict[str, VarRecord]] = None):
+class _DefUseCtx:
+    """Context type for `DefUse` visitor methods."""
+    env: DefUseEnv
+
+    def __init__(self, env: Optional[DefUseEnv] = None):
         if env is None:
             self.env = dict()
         else:
             self.env = env
 
     def extend(self, name: str, src: Ast):
-        copy = _Ctx()
+        copy = _DefUseCtx()
         copy.env = dict(**self.env)
         copy.env[name] = VarRecord(name, src)
         return copy
@@ -57,65 +57,65 @@ class DefUse(Analysis):
     def __init__(self, record=True):
         super().__init__('def_use', record)
 
-    def _visit_decnum(self, e, ctx: _Ctx):
+    def _visit_decnum(self, e, ctx: _DefUseCtx):
         return ctx.env
 
-    def _visit_integer(self, e, ctx: _Ctx):
+    def _visit_integer(self, e, ctx: _DefUseCtx):
         return ctx.env
 
-    def _visit_digits(self, e, ctx: _Ctx):
+    def _visit_digits(self, e, ctx: _DefUseCtx):
         return ctx.env
 
-    def _visit_variable(self, e, ctx: _Ctx):
+    def _visit_variable(self, e, ctx: _DefUseCtx):
         ctx.record_use(e.name, e)
         return ctx.env
 
-    def _visit_array(self, e, ctx: _Ctx):
+    def _visit_array(self, e, ctx: _DefUseCtx):
         for c in e.children:
             self._visit(c, ctx)
         return ctx.env
 
-    def _visit_unknown(self, e, ctx: _Ctx):
+    def _visit_unknown(self, e, ctx: _DefUseCtx):
         for c in e.children:
             self._visit(c, ctx)
         return ctx.env
 
-    def _visit_nary_expr(self, e, ctx: _Ctx):
+    def _visit_nary_expr(self, e, ctx: _DefUseCtx):
         for c in e.children:
             self._visit(c, ctx)
         return ctx.env
 
-    def _visit_compare(self, e, ctx: _Ctx):
+    def _visit_compare(self, e, ctx: _DefUseCtx):
         for c in e.children:
             self._visit(c, ctx)
         return ctx.env
 
-    def _visit_if_expr(self, e, ctx: _Ctx):
+    def _visit_if_expr(self, e, ctx: _DefUseCtx):
         self._visit(e.cond, ctx)
         self._visit(e.ift, ctx)
         self._visit(e.iff, ctx)
         return ctx.env
 
-    def _visit_assign(self, stmt, ctx: _Ctx):
+    def _visit_assign(self, stmt, ctx: _DefUseCtx):
         return self._visit(stmt.val, ctx)
 
-    def _visit_tuple_assign(self, stmt, ctx: _Ctx):
+    def _visit_tuple_assign(self, stmt, ctx: _DefUseCtx):
         return self._visit(stmt.val, ctx)
 
-    def _visit_return(self, stmt, ctx: _Ctx):
+    def _visit_return(self, stmt, ctx: _DefUseCtx):
         return self._visit(stmt.e, ctx)
 
-    def _visit_if_stmt(self, stmt, ctx: _Ctx):
+    def _visit_if_stmt(self, stmt, ctx: _DefUseCtx):
         self._visit(stmt.cond, ctx)
         ift_env = self._visit(stmt.ift, ctx)
         iff_env = self._visit(stmt.iff, ctx)
 
-        merged: dict[str, VarRecord] = dict()
+        merged: DefUseEnv = dict()
         for name in ift_env.keys() & iff_env.keys():
             merged[name] = ift_env[name]
         return merged
 
-    def _visit_block(self, block, ctx: _Ctx):
+    def _visit_block(self, block, ctx: _DefUseCtx):
         for stmt in block.stmts:
             match stmt:
                 case Assign():
@@ -129,22 +129,25 @@ class DefUse(Analysis):
                 case Return():
                     self._visit(stmt, ctx)
                 case IfStmt():
-                    ctx = _Ctx(self._visit(stmt, ctx))
+                    ctx = _DefUseCtx(self._visit(stmt, ctx))
                 case _:
                     raise NotImplementedError('unreachable', stmt)
         return ctx.env
 
-    def _visit_function(self, func, ctx: _Ctx):
+    def _visit_function(self, func, ctx: _DefUseCtx):
         for arg in func.args:
             ctx = ctx.extend(arg.name, arg)
-        return self._visit(func.body, ctx)
+        self._visit(func.body, ctx)
+        return ctx.env
 
     # override typing hint
-    def _visit(self, e, ctx: _Ctx) -> dict[str, VarRecord]:
+    def _visit(self, e, ctx: _DefUseCtx) -> DefUseEnv:
         return super()._visit(e, ctx)
 
-    def visit(self, e: Function | Block):
+    def visit(self, e: Function | Block, ctx: Optional[_DefUseCtx] = None):
         if not (isinstance(e, Function) or isinstance(e, Block)):
             raise TypeError(f'visit() argument 1 must be Function or Block, not {e}')
-        return self._visit(e, _Ctx())
+        if ctx is None:
+            ctx = _DefUseCtx()
+        self._visit(e, ctx)
 

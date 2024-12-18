@@ -71,6 +71,9 @@ class SyntaxCheck(Analysis):
     - `env`: map from name to variable info, representing all variables in scope
     """
 
+    def __init__(self):
+        super().__init__()
+
     def _visit_binding(self, binding: Binding, env: _VarEnv):
         match binding:
             case VarBinding():

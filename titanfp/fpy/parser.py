@@ -345,7 +345,6 @@ def fpcore(*args, **kwargs):
         # TODO: type check
         LiveVars().visit(core)
         DefUse().visit(core)
-        print(core)
 
         return core
 

@@ -190,25 +190,25 @@ class DefaultTransformVisitor(TransformVisitor):
     #######################################################
     # Expressions
 
-    def _visit_decnum(self, e, ctx):
+    def _visit_decnum(self, e, ctx: Any):
         return Decnum(e.val)
     
-    def _visit_integer(self, e, ctx):
+    def _visit_integer(self, e, ctx: Any):
         return Integer(e.val)
     
-    def _visit_digits(self, e, ctx):
+    def _visit_digits(self, e, ctx: Any):
         return Digits(e.m, e.e, e.b)
     
-    def _visit_variable(self, e, ctx):
+    def _visit_variable(self, e, ctx: Any):
         return Var(e.name)
 
-    def _visit_array(self, e, ctx):
+    def _visit_array(self, e, ctx: Any):
         return Array(*[self._visit(c, ctx) for c in e.children])
 
-    def _visit_unknown(self, e, ctx):
+    def _visit_unknown(self, e, ctx: Any):
         return UnknownCall(*[self._visit(c, ctx) for c in e.children])
 
-    def _visit_nary_expr(self, e, ctx):
+    def _visit_nary_expr(self, e, ctx: Any):
         info = op_info(e.name)
         if info is None:
             raise NotImplementedError('unreachable', e)
@@ -216,28 +216,28 @@ class DefaultTransformVisitor(TransformVisitor):
         match info.arity:
             case 1:
                 arg0 = self._visit(e.children[0], ctx)
-                return info.fpc(arg0)
+                return info.fpy(arg0)
             case 2:
                 arg0 = self._visit(e.children[0], ctx)
                 arg1 = self._visit(e.children[1], ctx)
-                return info.fpc(arg0, arg1)
+                return info.fpy(arg0, arg1)
             case 3:
                 arg0 = self._visit(e.children[0], ctx)
                 arg1 = self._visit(e.children[1], ctx)
                 arg2 = self._visit(e.children[2], ctx)
-                return info.fpc(arg0, arg1, arg2)
+                return info.fpy(arg0, arg1, arg2)
             case None:
                 args = [self._visit(c, ctx) for c in e.children]
-                return info.fpc(*args)
+                return info.fpy(*args)
             case _:
                 raise NotImplementedError('unreachable', e)
 
-    def _visit_compare(self, e, ctx):
+    def _visit_compare(self, e, ctx: Any):
         ops = [op for op in e.ops]
         children = [self._visit(c, ctx) for c in e.children]
         return Compare(ops, children)
     
-    def _visit_if_expr(self, e, ctx):
+    def _visit_if_expr(self, e, ctx: Any):
         cond = self._visit(e.cond, ctx)
         ift = self._visit(e.ift, ctx)
         iff = self._visit(e.iff, ctx)
@@ -255,31 +255,31 @@ class DefaultTransformVisitor(TransformVisitor):
             case _:
                 raise NotImplementedError('unexpected', binding)
     
-    def _visit_assign(self, stmt, ctx):
+    def _visit_assign(self, stmt, ctx: Any):
         return Assign(self._copy_binding(stmt.var), self._visit(stmt.val, ctx), stmt.ann)
 
-    def _visit_tuple_assign(self, stmt, ctx):
+    def _visit_tuple_assign(self, stmt, ctx: Any):
         return TupleAssign(self._copy_binding(stmt.binding), self._visit(stmt.val, ctx))
 
-    def _visit_return(self, stmt, ctx):
+    def _visit_return(self, stmt, ctx: Any):
         return Return(self._visit(stmt.e, ctx))
 
-    def _visit_if_stmt(self, stmt, ctx):
+    def _visit_if_stmt(self, stmt, ctx: Any):
         cond = self._visit(stmt.cond, ctx)
         ift = self._visit(stmt.ift, ctx)
         iff = self._visit(stmt.iff, ctx)
         return IfStmt(cond, ift, iff)
 
-    def _visit_block(self, stmt, ctx):
-        return Block([self._visit(s) for s in stmt.stmts])
+    def _visit_block(self, block: Block, ctx: Any):
+        return Block([self._visit(s, ctx) for s in block.stmts])
 
     #######################################################
     # Function
 
-    def _visit_function(self, func, ctx):
+    def _visit_function(self, func, ctx: Any):
         return Function(
             args=[arg for arg in func.args],
-            body=self._visit(func.body, None),
+            body=self._visit(func.body, ctx),
             ctx=Context(func.ctx.props),
             ident=func.ident,
             name=func.name,
