@@ -13,9 +13,9 @@ any variable must be defined along both branches when
 used after the `if` statement
 
 - any variables must be defined before it is used
-"""
 
-from typing import Self
+TODO: duplicate identifiers
+"""
 
 from ..fpyast import *
 from ..visitor import Analysis
@@ -41,9 +41,11 @@ class _VarEnv:
         copy._vars[var] = True
         return copy
     
-    def merge(self, other: Self):
+    def merge(self, other):
+        if not isinstance(other, _VarEnv):
+            raise TypeError('merge(): other argument must be of type \'_VarEnv\'', other)
         copy = _VarEnv()
-        for name in set(list(self._vars) + list(other._vars)):
+        for name in self._vars.keys() | other._vars.keys():
             copy._vars[name] = self._vars.get(name, False) and other._vars.get(name, False)
         return copy
 

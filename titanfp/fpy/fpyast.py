@@ -1,6 +1,6 @@
 """AST nodes in the FPY language"""
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Optional, Self
 
@@ -401,7 +401,10 @@ class Compare(Expr):
 
 class Binding(Ast):
     """FPy node: abstract binding"""
-    pass
+
+    @abstractmethod
+    def ids(self) -> set[str]:
+        raise NotImplementedError('virtual method')
 
 class VarBinding(Binding):
     """FPy node: single-variable binding"""
@@ -410,12 +413,18 @@ class VarBinding(Binding):
     def __init__(self, name: str):
         self.name = name
 
+    def ids(self):
+        return { self.name }
+
 class TupleBinding(Binding):
     """FPy node: tuple binding"""
     bindings: list[Binding]
 
     def __init__(self, *bindings: Binding):
         self.bindings = list(bindings)
+    
+    def ids(self) -> set[str]:
+        return set().union(*[b.ids() for b in self.bindings])
 
 # Statements
 

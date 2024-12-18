@@ -343,7 +343,9 @@ def fpcore(*args, **kwargs):
         # static analysis
         SyntaxCheck().visit(core)
         # TODO: type check
-        FreeVars().visit(core)
+        LiveVars().visit(core)
+        DefUse().visit(core)
+        print(core)
 
         return core
 

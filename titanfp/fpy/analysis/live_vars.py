@@ -7,7 +7,7 @@ Compute the set of free variables of an FPy program.
 from ..fpyast import *
 from ..visitor import Analysis
 
-class FreeVars(Analysis):
+class LiveVars(Analysis):
     """
     Free variable analyzer.
 
@@ -100,19 +100,16 @@ class FreeVars(Analysis):
         return fvs
 
     def _visit_function(self, func, ctx) -> _ResultType:
-        fvs = self._visit_block(func.body, None)
-        return fvs
+        return self._visit_block(func.body, ctx)
 
     # override typing hint
     def _visit(self, e, ctx) -> _ResultType:
         return super()._visit(e, ctx)
 
-    def visit(self, e: Function | Block | Stmt | Expr) -> _ResultType:
-        if not (isinstance(e, Function) or isinstance(e, Block) \
-                or isinstance(e, Stmt) or isinstance(e, Expr)):
-            raise TypeError(f'visit() argument 1 must be Function, Stmt or Expr, not {e}')
+    def visit(self, e: Function | Block) -> _ResultType:
+        if not (isinstance(e, Function) or isinstance(e, Block)):
+            raise TypeError(f'visit() argument 1 must be Function or Block, not {e}')
         return self._visit(e, None)
-
 
     def _collect_vars(self, binding: Binding):
         """Returns the set of identifiers in a binding."""
@@ -126,69 +123,3 @@ class FreeVars(Analysis):
                 return fvs
             case _:
                 raise NotImplementedError('unreachable', binding)
-
-    
-
-    # def _visit_assign(self, stmt, ctx: _CtxType):
-    #     raise NotImplementedError('do not call directly')
-
-    # def _visit_tuple_assign(self, stmt, ctx: _CtxType):
-    #     raise NotImplementedError('do not call directly')
-
-    # def _visit_return(self, stmt, ctx: _CtxType):
-    #     raise NotImplementedError('do not call directly')
-
-    # def _visit_if_stmt(self, stmt, ctx: _CtxType):
-    #     raise NotImplementedError('do not call directly')
-    #     # cond_fvs = self._visit(stmt.cond, ctx)
-    #     # ift_ctx, ift_fvs = self._visit_block(stmt.ift, ctx)
-    #     # iff_ctx, iff_fvs = self._visit_block(stmt.iff, ctx)
-    #     # return cond_fvs.union(ift_fvs, iff_fvs)
-
-    # def _visit_binding(self, binding: Binding, ctx: _CtxType) -> set[str]:
-    #     match binding:
-    #         case VarBinding():
-    #             return { *ctx, binding.name }
-    #         case TupleBinding():
-    #             for elt in binding.bindings:
-    #                 ctx = self._visit_binding(elt, ctx)
-    #             return ctx
-    #         case _:
-    #             raise NotImplementedError('unreachable', binding)
-
-    # def _visit_block(self, block, ctx: _CtxType) -> tuple[_CtxType, set[str]]:
-    #     fvs: set[str] = set()
-    #     for st in reversed(block.stmts):
-    #         match st:
-    #             case Assign():
-    #                 fvs = fvs.union(self._visit(st.val, ctx))
-    #                 ctx = self._visit_binding(st.var, ctx)
-    #             # case TupleAssign():
-    #             #     fvs = fvs.union(self._visit(st.val, ctx))
-    #             #     ctx = self._visit_binding(st.binding, ctx)
-    #             case Return():
-    #                 fvs = fvs.union(self._visit(st.e, ctx))
-    #             # case IfStmt():
-    #             #     cond_fvs = self._visit(st.cond, ctx)
-    #             #     ift_ctx, ift_fvs = self._visit_block(st.ift, ctx)
-    #             #     iff_ctx, iff_fvs = self._visit_block(st.iff, ctx)
-    #             #     fvs = fvs.union(cond_fvs, ift_fvs, iff_fvs)
-    #             #     ctx = ift_ctx.intersection(iff_ctx)
-    #             case _:
-    #                 raise NotImplementedError('unreachable', st)
-    #     return ctx, fvs
-
-    # def _visit_function(self, func, ctx: _CtxType):
-    #     new_ctx: set[str] = set()
-    #     for arg in func.args:
-    #         new_ctx.add(arg.name)
-    #     _, fvs = self._visit_block(func.body, new_ctx)
-    #     return fvs
-
-    # # override typing hint
-    # def _visit(self, e, ctx: _CtxType) -> set[str]:
-    #     return super()._visit(e, ctx)
-
-    # def visit(self, e: Function | Stmt | Expr):
-    
-
