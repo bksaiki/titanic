@@ -480,9 +480,9 @@ class IfStmt(Stmt):
     """FPy node: if statement"""
     cond: Expr
     ift: Block
-    iff: Block
+    iff: Optional[Block]
 
-    def __init__(self, cond: Expr, ift: Block, iff: Block):
+    def __init__(self, cond: Expr, ift: Block, iff: Optional[Block]):
         super().__init__()
         self.cond = cond
         self.ift = ift

@@ -40,10 +40,10 @@ class _VarEnv:
         copy._vars = self._vars.copy()
         copy._vars[var] = True
         return copy
-    
-    def merge(self, other):
+
+    def intersect(self, other):
         if not isinstance(other, _VarEnv):
-            raise TypeError('merge(): other argument must be of type \'_VarEnv\'', other)
+            raise TypeError('intersect(): other argument must be of type \'_VarEnv\'', other)
         copy = _VarEnv()
         for name in self._vars.keys() | other._vars.keys():
             copy._vars[name] = self._vars.get(name, False) and other._vars.get(name, False)
@@ -147,10 +147,16 @@ class SyntaxCheck(Analysis):
         return self._visit_binding(stmt.binding, env)
     
     def _visit_if_stmt(self, stmt, ctx: _CtxType):
+        _, env = ctx
         self._visit(stmt.cond, ctx)
         ift_env = self._visit(stmt.ift, ctx)
-        iff_env = self._visit(stmt.iff, ctx)
-        return ift_env.merge(iff_env)
+        if stmt.iff is None:
+            # 1-armed if
+            return env
+        else:
+            # 2-armed if
+            iff_env = self._visit(stmt.iff, ctx)
+            return ift_env.intersect(iff_env)
 
     def _visit_return(self, stmt, ctx: _CtxType):
         return self._visit(stmt.e, ctx)

@@ -61,8 +61,9 @@ class MergeIf(DefaultTransformVisitor):
                         for s in self._visit_block(stmt.ift, ctx).stmts:
                             stmts.append(s)
                         # then, merge in if-false statements
-                        for s in self._visit_block(stmt.iff, ctx).stmts:
-                            stmts.append(s)
+                        if stmt.iff is not None:
+                            for s in self._visit_block(stmt.iff, ctx).stmts:
+                                stmts.append(s)
                     else:
                         # emit temporary to store condition
                         t = ctx.fresh('cond')
@@ -71,8 +72,9 @@ class MergeIf(DefaultTransformVisitor):
                         for s in self._visit_block(stmt.ift, ctx).stmts:
                             stmts.append(s)
                         # then, merge in if-false statements
-                        for s in self._visit_block(stmt.iff, ctx).stmts:
-                            stmts.append(s)
+                        if stmt.iff is not None:
+                            for s in self._visit_block(stmt.iff, ctx).stmts:
+                                stmts.append(s)
                         # translate phi nodes to if expressions
                         for p in phis:
                             ife = IfExpr(Var(t), Var(p.lhs), Var(p.rhs))

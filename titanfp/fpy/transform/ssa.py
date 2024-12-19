@@ -99,9 +99,11 @@ class SSA(DefaultTransformVisitor):
             match stmt:
                 case Assign():
                     ctx, renamed = self._rename_binding(stmt.var, ctx)
+                    assert isinstance(renamed, VarBinding), 'unexpected binding type'
                     stmts.append(Assign(renamed, self._visit(stmt.val, ctx)))
                 case TupleAssign():
                     ctx, renamed = self._rename_binding(stmt.binding, ctx)
+                    assert isinstance(renamed, TupleBinding), 'unexpected binding type'
                     stmts.append(TupleAssign(renamed, self._visit(stmt.val, ctx)))
                 case Return():
                     stmts.append(Return(self._visit(stmt.e, ctx)))
@@ -110,17 +112,37 @@ class SSA(DefaultTransformVisitor):
                     # recurse on children
                     cond = self._visit(stmt.cond, ctx)
                     ift, ift_ctx = self._visit_block(stmt.ift, ctx)
-                    iff, iff_ctx = self._visit_block(stmt.iff, ctx)
-                    new_stmt = IfStmt(cond, ift, iff)
-                    stmts.append(new_stmt)
-                    # live variables after this statement
-                    # need to merge them with Phi nodes
-                    fvs = block.stmts[i + 1].attribs[LiveVars.analysis_name]
-                    for fv in fvs:
-                        assert fv in ift_ctx.env, f'variable {fv} not in ift_ctx'
-                        assert fv in iff_ctx.env, f'variable {fv} not in iff_ctx'
-                        ctx, renamed = ctx.fresh(fv)
-                        stmts.append(Phi(renamed, ift_ctx.env[fv], iff_ctx.env[fv], new_stmt))
+                    if stmt.iff is None:
+                        # 1-armed if
+                        new_stmt = IfStmt(cond, ift, None)
+                        stmts.append(new_stmt)
+                        # live variables after this statement
+                        # need to merge them with Phi nodes
+                        fvs = block.stmts[i + 1].attribs[LiveVars.analysis_name]
+                        old_names = [ctx.env[fv] for fv in fvs]
+                        for fv, old_name in zip(fvs, old_names):
+                            assert fv in ift_ctx.env, f'variable {fv} not in iff_ctx'
+                            ctx, renamed = ctx.fresh(fv)
+                            assert isinstance(renamed, str), "expected string"
+                            if ift_ctx.env[fv] != old_name:
+                                phi = Phi(renamed, old_name, ift_ctx.env[fv], new_stmt)
+                                stmts.append(phi)
+                    else:
+                        # 2-armed if
+                        iff, iff_ctx = self._visit_block(stmt.iff, ctx)
+                        new_stmt = IfStmt(cond, ift, iff)
+                        stmts.append(new_stmt)
+                        # live variables after this statement
+                        # need to merge them with Phi nodes
+                        fvs = block.stmts[i + 1].attribs[LiveVars.analysis_name]
+                        for fv in fvs:
+                            assert fv in ift_ctx.env, f'variable {fv} not in ift_ctx'
+                            assert fv in iff_ctx.env, f'variable {fv} not in iff_ctx'
+                            ctx, renamed = ctx.fresh(fv)
+                            assert isinstance(renamed, str), "expected string"
+                            if ift_ctx.env[fv] != iff_ctx.env[fv]:
+                                phi = Phi(renamed, ift_ctx.env[fv], iff_ctx.env[fv], new_stmt)
+                                stmts.append(phi)
                 case _:
                     return NotImplementedError('unreachable', stmt)
         return Block(stmts), ctx
@@ -149,7 +171,7 @@ class SSA(DefaultTransformVisitor):
         new = self._visit(e, ctx)
         return (new, ctx.orig)
 
-    def _rename_binding(self, binding: Binding, ctx: _SSACtx):
+    def _rename_binding(self, binding: Binding, ctx: _SSACtx) -> tuple[_SSACtx, Binding]:
         match binding:
             case VarBinding():
                 ctx, renamed = ctx.fresh(binding.name)

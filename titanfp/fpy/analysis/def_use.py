@@ -108,12 +108,16 @@ class DefUse(Analysis):
     def _visit_if_stmt(self, stmt, ctx: _DefUseCtx):
         self._visit(stmt.cond, ctx)
         ift_env = self._visit(stmt.ift, ctx)
-        iff_env = self._visit(stmt.iff, ctx)
-
-        merged: DefUseEnv = dict()
-        for name in ift_env.keys() & iff_env.keys():
-            merged[name] = ift_env[name]
-        return merged
+        if stmt.iff is None:
+            # 1-armed if statement
+            return ctx.env
+        else:
+            # 2-armed if statement
+            iff_env = self._visit(stmt.iff, ctx)
+            merged: DefUseEnv = dict()
+            for name in ift_env.keys() & iff_env.keys():
+                merged[name] = ift_env[name]
+            return merged
     
     def _visit_phi(self, stmt, ctx):
         ctx.record_use(stmt.lhs, stmt)

@@ -239,7 +239,8 @@ cores: list[Function] = [
     # Examples
     nmse3_1,
     instCurrent,
-    azimuth
+    azimuth,
+    lod_anisotropic
 ]
 
 for core in cores:

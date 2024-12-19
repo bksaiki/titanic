@@ -128,7 +128,7 @@ class FPyParser:
             case ast.If(test=test, body=body, orelse=orelse):
                 cond = self._parse_expr(test)
                 ift = self._parse_statements(body)
-                iff = self._parse_statements(orelse)
+                iff = None if orelse == [] else self._parse_statements(orelse)
                 return IfStmt(cond, ift, iff)
             case ast.Return(value=e):
                 if e is None:

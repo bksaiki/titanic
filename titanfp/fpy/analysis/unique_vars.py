@@ -52,8 +52,13 @@ class UniqueVars(ReduceVisitor):
     def _visit_if_stmt(self, stmt, ctx) -> _ResultType:
         cond_vars = self._visit(stmt.cond, ctx)
         ift_vars = self._visit(stmt.ift, ctx)
-        iff_vars = self._visit(stmt.iff, ctx)
-        return cond_vars.union(ift_vars, iff_vars)
+        if stmt.iff is None:
+            # 1-armed if
+            return cond_vars.union(ift_vars)
+        else:
+            # 2-armed if
+            iff_vars = self._visit(stmt.iff, ctx)
+            return cond_vars.union(ift_vars, iff_vars)
 
     def _visit_phi(self, stmt, ctx) -> _ResultType:
         return { stmt.name, stmt.lhs, stmt.rhs }

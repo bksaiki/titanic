@@ -83,10 +83,15 @@ class LiveVars(Analysis):
         return ctx.union(self._visit(stmt.e, None))
 
     def _visit_if_stmt(self, stmt, ctx: _ResultType) -> _ResultType:
-        ift_fvs = self._visit(stmt.ift, ctx)
-        iff_fvs = self._visit(stmt.iff, ctx)
-        cond_fvs = self._visit(stmt.cond, None)
-        return cond_fvs.union(ift_fvs, iff_fvs)
+        if stmt.iff is None:
+            ift_fvs = self._visit(stmt.ift, ctx)
+            cond_fvs = self._visit(stmt.cond, None)
+            return ift_fvs.union(cond_fvs)
+        else:
+            ift_fvs = self._visit(stmt.ift, ctx)
+            iff_fvs = self._visit(stmt.iff, ctx)
+            cond_fvs = self._visit(stmt.cond, None)
+            return cond_fvs.union(ift_fvs, iff_fvs)
     
     def _visit_phi(self, stmt, ctx: _ResultType) -> _ResultType:
         fvs = ctx.difference(stmt.name)
