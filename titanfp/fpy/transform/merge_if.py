@@ -10,7 +10,8 @@ class MergeIf(DefaultTransformVisitor):
     """
     Transforms if statements into if expressions.
 
-    This rewriting pass transforms any if statement:
+    This transformation assumes SSA form and requires `DefUSe` and `LiveVars`.
+    It transforms a block of the form:
     ```
     if <cond>:
         S1 ...
@@ -78,6 +79,5 @@ class MergeIf(DefaultTransformVisitor):
             raise RuntimeError('must run DefUse analysis to use this transformation')
         if self.live_vars.name not in e.attribs:
             raise RuntimeError('must run LiveVars analysis to use this transformation')
-        print(e)
         ctx: DefUseEnv = e.attribs[self.def_use.name]
         return self._visit(e, ctx)

@@ -9,23 +9,28 @@ class Gensym(object):
     has generated and any reserved names that are set during
     initialization of the generator.
     """
-    names: set[str]
-    counter: int
+
+    _names: set[str]
+    _counter: int
 
     def __init__(self, *names: str):
-        self.names = set(names)
-        self.counter = len(names)
+        self._names = set()
+        self._counter = 1
 
-    def __call__(self, prefix: str = 't'):
+    def reserve(self, *names: str):
+        """Reserves a list of names."""
+        self._names.update(names)
+
+    def fresh(self, prefix: str = 't'):
         """Generates a unique name with a given prefix."""
-        name = f'{prefix}{self.counter}'
-        while name in self.names:
-            self.counter += 1
-            name = f'{prefix}{self.counter}'
+        name = f'{prefix}{self._counter}'
+        self._counter += 1
+        while name in self._names:
+            name = f'{prefix}{self._counter}'
+            self._counter += 1
 
-        self.names.add(name)
+        self._names.add(name)
         return name
-    
-    def reserve(self, name):
-        """Adds a reserved name."""
-        self.names.add(name)
+
+    def __contains__(self, name: str):
+        return name in self._names

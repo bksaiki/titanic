@@ -21,6 +21,11 @@ class LiveVars(Analysis):
     The argument is the set of bound variables in the current scope.
     """
 
+    analysis_name = 'free_vars'
+    """
+    AST attribute key for this analysis.
+    """
+
     def __init__(self, record = True):
         super().__init__('free_vars', record)
 

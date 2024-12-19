@@ -488,6 +488,24 @@ class IfStmt(Stmt):
         self.ift = ift
         self.iff = iff
 
+class Phi(Stmt):
+    """FPy node: virtual node to represent 2-argument Phi nodes in SSA form."""
+    name: str
+    lhs: str
+    rhs: str
+    branch: IfStmt
+
+    def __init__(self, name: str, lhs: str, rhs: str, branch: IfStmt):
+        super().__init__()
+        self.name = name
+        self.lhs = lhs
+        self.rhs = rhs
+        self.branch = branch
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(name={self.name}, lhs={self.lhs}, rhs={self.rhs})'
+
+
 class Return(Stmt):
     """FPy node: return statement"""
     e: Expr

@@ -166,7 +166,7 @@ class FPCoreCompiler(ReduceVisitor):
                     assert tl == [], 'return statements must be at the end of blocks'
                     return self._visit_return(hd, ctx)
                 case _:
-                    raise NotImplementedError('unreachable')
+                    raise NotImplementedError('unreachable', stmts)
         return _build(block.stmts)
 
     #######################################################
@@ -197,7 +197,8 @@ class FPCoreCompiler(ReduceVisitor):
             raise TypeError(f'expected Function: {f}')
 
         # Normalizing transformations
-        f = MergeIf().visit(f)
+        f, _ = SSA().visit(f)
+        # f = MergeIf().visit(f)
 
 
         return self._visit_function(f, None)
