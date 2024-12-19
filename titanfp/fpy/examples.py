@@ -116,23 +116,44 @@ def test_array3():
     x, y = 1.0, 2.0
     return x + y
 
-@fpcore(name='Test if statement (1/3)')
+@fpcore(name='Test if statement (1/4)')
 def test_if1():
-    if 0.0 < 1.0:
-        t = 1.0
-    else:
-        t = 0.0
+    t = 0
+    if 0 < 1:
+        t = 1
     return t
 
-# @fpcore(name='Test if statement (2/3)')
-# def test_if2():
-#     if 0.0 < 1.0:
-#         t = 1.0
-#     elif 1.0 < 2.0:
-#         t = 2.0
-#     else:
-#         t = 3.0
-#     return t
+@fpcore(name='Test if statement (2/4)')
+def test_if2():
+    if 0 < 1:
+        t = 1
+    else:
+        t = 0
+    return t
+
+@fpcore(name='Test if statement (3/4)')
+def test_if3():
+    if 0 < 1:
+        if 1 < 2:
+            t = 0
+        else:
+            t = 1
+    else:
+        if 2 > 1:
+            t = 2
+        else:
+            t = 3
+    return t
+
+@fpcore(name='Test if statement (4/4)')
+def test_if4():
+    if 0 < 1:
+        t = 0
+    elif 1 < 2:
+        t = 1
+    else:
+        t = 2
+    return t
 
 ### Examples
 
@@ -187,7 +208,7 @@ def azimuth(lat1: Real, lat2: Real, lon1: Real, lon2: Real):
 # TODO: vectors should be tensors
 @fpcore(
     name='Level-of-detail (LOD) algorithm, anisotropic case',
-    cite=['Microsoft-2015'],
+    cite=['DirectX 11.3 specification, Microsoft-2015'],
     strict=True
 )
 def lod_anisotropic(
@@ -246,7 +267,9 @@ cores: list[Function] = [
     test_array2,
     test_array3,
     test_if1,
-    # test_if2,
+    test_if2,
+    test_if3,
+    test_if4,
     # Examples
     nmse3_1,
     instCurrent,

@@ -15,17 +15,11 @@ class _SSACtx:
         """
     
         gensym: Gensym
-        """
-        Unique name generator.
-        """
+        """Unique name generator."""
         orig: dict[str, str]
-        """
-        Mapping from SSA name to the original variable name.
-        """
+        """Mapping from SSA name to the original variable name."""
         env: dict[str, str]
-        """
-        Mapping from variable names to their SSA names.
-        """
+        """Mapping from variable names to their SSA names."""
 
         def __init__(self, x: Optional[Self] = None):
             if x is None:
@@ -78,24 +72,24 @@ class SSA(DefaultTransformVisitor):
     ```
     """
 
-    def _visit_variable(self, e, ctx: _SSACtx):
+    def _visit_variable(self, e: Var, ctx: _SSACtx):
         return Var(ctx.env[e.name])
 
     def _visit_assign(self, stmt, ctx):
         raise NotImplementedError('do not call directly')
 
-    def _visit_tuple_assign(self, stmt, ctx: _SSACtx):
+    def _visit_tuple_assign(self, stmt, ctx):
         raise NotImplementedError('do not call directly')
 
-    def _visit_return(self, stmt, ctx: _SSACtx):
+    def _visit_return(self, stmt, ctx):
         raise NotImplementedError('do not call directly')
 
-    def _visit_if_stmt(self, stmt, ctx: _SSACtx):
+    def _visit_if_stmt(self, stmt, ctx):
         raise NotImplementedError('do not call directly')
 
     def _visit_block(self, block, ctx: _SSACtx):
         stmts: list[Stmt] = []
-        for i, stmt in enumerate(block.stmts):
+        for stmt in block.stmts:
             match stmt:
                 case Assign():
                     ctx, renamed = self._rename_binding(stmt.var, ctx)
@@ -108,7 +102,8 @@ class SSA(DefaultTransformVisitor):
                 case Return():
                     stmts.append(Return(self._visit(stmt.e, ctx)))
                 case IfStmt():
-                    assert i + 1 < len(block.stmts), 'if statement must be followed by a statement'
+                    # live variables after this statement
+                    _, fvs = stmt.attribs[LiveVars.analysis_name]
                     # recurse on children
                     cond = self._visit(stmt.cond, ctx)
                     ift, ift_ctx = self._visit_block(stmt.ift, ctx)
@@ -116,9 +111,8 @@ class SSA(DefaultTransformVisitor):
                         # 1-armed if
                         new_stmt = IfStmt(cond, ift, None)
                         stmts.append(new_stmt)
-                        # live variables after this statement
-                        # need to merge them with Phi nodes
-                        fvs = block.stmts[i + 1].attribs[LiveVars.analysis_name]
+
+                        # create Phi nodes for live variables
                         old_names = [ctx.env[fv] for fv in fvs]
                         for fv, old_name in zip(fvs, old_names):
                             assert fv in ift_ctx.env, f'variable {fv} not in iff_ctx'
@@ -132,9 +126,8 @@ class SSA(DefaultTransformVisitor):
                         iff, iff_ctx = self._visit_block(stmt.iff, ctx)
                         new_stmt = IfStmt(cond, ift, iff)
                         stmts.append(new_stmt)
-                        # live variables after this statement
-                        # need to merge them with Phi nodes
-                        fvs = block.stmts[i + 1].attribs[LiveVars.analysis_name]
+
+                        # create Phi nodes for live variables
                         for fv in fvs:
                             assert fv in ift_ctx.env, f'variable {fv} not in ift_ctx'
                             assert fv in iff_ctx.env, f'variable {fv} not in iff_ctx'
