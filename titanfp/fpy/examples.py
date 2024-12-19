@@ -105,7 +105,7 @@ def test_ife4():
 
 @fpcore
 def test_array1():
-    return (1.0, 2.0)
+    return (1.0, 2.0, 3.0)
 
 @fpcore
 def test_array2():
@@ -115,6 +115,13 @@ def test_array2():
 def test_array3():
     x, y = 1.0, 2.0
     return x + y
+
+@fpcore
+def test_array4():
+    x, y = (1.0, 2.0), (3.0, 4.0)
+    x0, x1 = x
+    y0, y1 = y
+    return x0 * y0 + x1 * y1
 
 @fpcore(name='Test if statement (1/4)')
 def test_if1():
@@ -154,6 +161,13 @@ def test_if4():
     else:
         t = 2
     return t
+
+@fpcore
+def test_while1():
+    x = 0
+    while x < 1:
+        x = 1
+    return x
 
 ### Examples
 
@@ -266,6 +280,7 @@ cores: list[Function] = [
     test_array1,
     test_array2,
     test_array3,
+    test_array4,
     test_if1,
     test_if2,
     test_if3,
@@ -280,56 +295,3 @@ cores: list[Function] = [
 for core in cores:
     fpc = fpy_to_fpcore(core)
     print(fpc.sexp)
-
-# (FPCore newton-raphson (x0 tolerance)
-#  (while (> (fabs (- x1 x0)) tolerance) 
-#   ([x0 x0 x1]
-#    [x1 (- x0 (/ (f x0) (fprime x0)))
-#        (- x1 (/ (f x1) (fprime x1)))])
-#   x1)
-# )
-
-# def newton(x0 : Real, eps : Real):
-#     x1 = x0 - (f(x0) / fprime(x0))
-#     while eps < fabs(x1 - x0):
-#         x0 = x1
-#         x1 = x1 - (f(x1) / fprime(x1))
-#     return x1
-
-
-# def newton2(x0, eps):
-#     x1 = x0 - (f(x0) / fprime(x0))
-#     with While(eps < fabs(x1 - x0)) as result:
-#         x0 = x1
-#         x1 = x1 - (f(x1) / fprime(x1))
-#     return x1
-
-
-# (FPCore (dx_u dx_v dy_u dy_v max_aniso)
-#  :name "Level-of-detail (LOD) algorithm, anisotropic case"
-#  :cite (Microsoft-2015)
-#  (let ([dx2 (+ (* dx_u dx_u) (* dx_v dx_v))])
-#    (let ([dy2 (+ (* dy_u dy_u) (* dy_v dy_v))])
-#      (let ([det (fabs (- (* dx_u dy_v) (* dx_v dy_u)))])
-#        (let ([x_major (> dx2 dy2)])
-#          (let ([major2 (if x_major dx2 dy2)])
-#            (let ([major (sqrt major2)])
-#              (let ([norm_major (/ 1 major)])
-#                (let ([aniso_dir_u (* (if x_major dx_u dy_u) norm_major)])
-#                  (let ([aniso_dir_v (* (if x_major dx_v dy_v) norm_major)])
-#                    (let ([aniso_ratio (/ major2 det)])
-#                      (let ([cond (> aniso_ratio max_aniso)])
-#                        (let ([aniso_ratio0 max_aniso])
-#                          (let ([minor (/ major aniso_ratio0)])
-#                            (let ([minor1 (/ det major)])
-#                              (let ([minor2 (if cond minor minor1)])
-#                                (let ([aniso_ratio4 (if cond aniso_ratio0 aniso_ratio)])
-#                                  (let ([cond26 (< minor2 1)])
-#                                    (let ([aniso_ratio6 (fmax 1 (* aniso_ratio6 minor2))])
-#                                      (let ([aniso_ratio7 (if cond26 aniso_ratio4 aniso_ratio6)])
-#                                        (let ([lod (log2 minor8)])
-#                                          (array lod
-#                                                 aniso_ratio7
-#                                                 aniso_dir_u10
-#                                                 aniso_dir_v9))))))))))))))))))))))
-

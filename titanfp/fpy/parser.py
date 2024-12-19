@@ -123,13 +123,18 @@ class FPyParser:
                                 return TupleAssign(binding, self._parse_expr(value))
                             case _:
                                 raise FPyParserError(self.source, 'Unexpected binding type', st)
-                    case ts:
+                    case _:
                         raise FPyParserError(self.source, 'Multiple assignments unsupported', st)
             case ast.If(test=test, body=body, orelse=orelse):
                 cond = self._parse_expr(test)
                 ift = self._parse_statements(body)
                 iff = None if orelse == [] else self._parse_statements(orelse)
                 return IfStmt(cond, ift, iff)
+            case ast.While(test=test, body=body, orelse=orelse):
+                if orelse != []:
+                    raise FPyParserError(self.source, 'while-else is unsupported', st)
+                cond = self._parse_expr(test)
+                return WhileStmt(cond, self._parse_statements(body))
             case ast.Return(value=e):
                 if e is None:
                     raise FPyParserError(self.source, 'Return statement must have value', st)

@@ -150,10 +150,13 @@ class FPCoreCompiler(ReduceVisitor):
         return self._visit(stmt.e, ctx)
     
     def _visit_if_stmt(self, stmt, ctx):
-        raise NotImplementedError
+        raise NotImplementedError('cannot compile to FPCore')
+    
+    def _visit_while_stmt(self, stmt, ctx):
+        raise NotImplementedError('cannot compile to FPCore')
     
     def _visit_phi(self, stmt, ctx):
-        raise NotImplementedError
+        raise NotImplementedError('cannot compile to FPCore')
     
     def _visit_block(self, block, ctx):
         def _build(stmts: list[Stmt]) -> fpc.Expr:

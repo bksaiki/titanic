@@ -488,14 +488,24 @@ class IfStmt(Stmt):
         self.ift = ift
         self.iff = iff
 
+class WhileStmt(Stmt):
+    """FPy node: while statement"""
+    cond: Expr
+    body: Block
+
+    def __init__(self, cond: Expr, body: Block):
+        super().__init__()
+        self.cond = cond
+        self.body = body
+
 class Phi(Stmt):
     """FPy node: virtual node to represent 2-argument Phi nodes in SSA form."""
     name: str
     lhs: str
     rhs: str
-    branch: IfStmt
+    branch: IfStmt | WhileStmt
 
-    def __init__(self, name: str, lhs: str, rhs: str, branch: IfStmt):
+    def __init__(self, name: str, lhs: str, rhs: str, branch: IfStmt | WhileStmt):
         super().__init__()
         self.name = name
         self.lhs = lhs

@@ -158,6 +158,12 @@ class SyntaxCheck(Analysis):
             iff_env = self._visit(stmt.iff, ctx)
             return ift_env.intersect(iff_env)
 
+    def _visit_while_stmt(self, stmt, ctx):
+        _, env = ctx
+        self._visit(stmt.cond, ctx)
+        self._visit(stmt.body, ctx)
+        return env
+
     def _visit_return(self, stmt, ctx: _CtxType):
         return self._visit(stmt.e, ctx)
 
@@ -182,6 +188,8 @@ class SyntaxCheck(Analysis):
                     env = self._visit(st, (False, env))
                     has_return = True
                 case IfStmt():
+                    env = self._visit(st, (False, env))
+                case WhileStmt():
                     env = self._visit(st, (False, env))
                 case Phi():
                     env = self._visit(st, (False, env))

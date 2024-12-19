@@ -83,28 +83,11 @@ class LiveVars(Analysis):
     def _visit_if_stmt(self, stmt, ctx):
         raise NotImplementedError('unreachable')
     
+    def _visit_while_stmt(self, stmt, ctx):
+        raise NotImplementedError('unreachable')
+    
     def _visit_phi(self, stmt, ctx):
         raise NotImplementedError('unreachable')
-
-    # def _visit_assign(self, stmt, ctx: _ResultType) -> _ResultType:
-    #     ctx = ctx.difference(stmt.var.ids())
-    #     return ctx.union(self._visit(stmt.val, None))
-
-    # def _visit_tuple_assign(self, stmt, ctx: _ResultType) -> _ResultType:
-    #     ctx = ctx.difference(stmt.binding.ids())
-    #     return ctx.union(self._visit(stmt.val, None))
-
-    # def _visit_return(self, stmt, ctx: _ResultType) -> _ResultType:
-    #     return ctx.union(self._visit(stmt.e, None))
-
-    # def _visit_if_stmt(self, stmt, ctx: _ResultType) -> _ResultType:
-    #     cond_fvs = self._visit(stmt.cond, None)
-    #     ift_fvs = self._visit(stmt.ift, ctx)
-    #     if stmt.iff is None:
-    #         return ctx.union(cond_fvs, ift_fvs)
-    #     else:
-    #         iff_fvs = self._visit(stmt.iff, ctx)
-    #         return cond_fvs.union(ift_fvs, iff_fvs)
 
     def _visit_block(self, block, ctx: Optional[_ResultType]) -> _ResultType:
         # analysis runs in reverse, but visitor runs in forward order:
@@ -128,10 +111,17 @@ class LiveVars(Analysis):
                     cond_fvs = self._visit(stmt.cond, None)
                     ift_fvs = self._visit(stmt.ift, ctx)
                     if stmt.iff is None:
+                        # 1-armed if
                         ctx = ctx.union(cond_fvs, ift_fvs)
                     else:
+                        # 2-armed if
                         iff_fvs = self._visit(stmt.iff, ctx)
                         ctx = cond_fvs.union(ift_fvs, iff_fvs)
+                    stmt.attribs[self.analysis_name] = (ctx, out_ctx)
+                case WhileStmt():
+                    cond_fvs = self._visit(stmt.cond, None)
+                    body_fvs = self._visit(stmt.body, ctx)
+                    ctx = cond_fvs.union(cond_fvs, body_fvs) # similar to a 1-armed if
                     stmt.attribs[self.analysis_name] = (ctx, out_ctx)
                 case Return():
                     assert len(ctx) == 0, "return statement should be at the end of a block"

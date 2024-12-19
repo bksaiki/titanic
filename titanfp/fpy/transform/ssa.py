@@ -75,69 +75,86 @@ class SSA(DefaultTransformVisitor):
     def _visit_variable(self, e: Var, ctx: _SSACtx):
         return Var(ctx.env[e.name])
 
-    def _visit_assign(self, stmt, ctx):
-        raise NotImplementedError('do not call directly')
+    def _visit_assign(self, stmt: Assign, ctx: _SSACtx):
+        ctx, renamed = self._rename_binding(stmt.var, ctx)
+        assert isinstance(renamed, VarBinding), 'unexpected binding type'
+        return ctx, [Assign(renamed, self._visit(stmt.val, ctx))]
 
-    def _visit_tuple_assign(self, stmt, ctx):
-        raise NotImplementedError('do not call directly')
+    def _visit_tuple_assign(self, stmt: TupleAssign, ctx: _SSACtx):
+        ctx, renamed = self._rename_binding(stmt.binding, ctx)
+        assert isinstance(renamed, TupleBinding), 'unexpected binding type'
+        return ctx, [TupleAssign(renamed, self._visit(stmt.val, ctx))]
 
-    def _visit_return(self, stmt, ctx):
-        raise NotImplementedError('do not call directly')
+    def _visit_return(self, stmt: Return, ctx: _SSACtx):
+        return ctx, [Return(self._visit(stmt.e, ctx))]
 
-    def _visit_if_stmt(self, stmt, ctx):
-        raise NotImplementedError('do not call directly')
+    def _visit_if_stmt(self, stmt: IfStmt, ctx: _SSACtx):
+        stmts: list[Stmt] = []
+        # live variables after this statement
+        _, fvs = stmt.attribs[LiveVars.analysis_name]
+        # recurse on children
+        cond = self._visit(stmt.cond, ctx)
+        ift, ift_ctx = self._visit_block(stmt.ift, ctx)
+        if stmt.iff is None:
+            # 1-armed if
+            new_stmt = IfStmt(cond, ift, None)
+            stmts.append(new_stmt)
+
+            # create Phi nodes for live variables
+            old_names = [ctx.env[fv] for fv in fvs]
+            for fv, old_name in zip(fvs, old_names):
+                assert fv in ift_ctx.env, f'variable {fv} not in iff_ctx'
+                ctx, renamed = ctx.fresh(fv)
+                assert isinstance(renamed, str), "expected string"
+                if ift_ctx.env[fv] != old_name:
+                    phi = Phi(renamed, old_name, ift_ctx.env[fv], new_stmt)
+                    stmts.append(phi)
+        else:
+            # 2-armed if
+            iff, iff_ctx = self._visit_block(stmt.iff, ctx)
+            new_stmt = IfStmt(cond, ift, iff)
+            stmts.append(new_stmt)
+
+            # create Phi nodes for live variables
+            for fv in fvs:
+                assert fv in ift_ctx.env, f'variable {fv} not in ift_ctx'
+                assert fv in iff_ctx.env, f'variable {fv} not in iff_ctx'
+                ctx, renamed = ctx.fresh(fv)
+                assert isinstance(renamed, str), "expected string"
+                if ift_ctx.env[fv] != iff_ctx.env[fv]:
+                    phi = Phi(renamed, ift_ctx.env[fv], iff_ctx.env[fv], new_stmt)
+                    stmts.append(phi)
+
+        return ctx, stmts
+    
+    def _visit_while_stmt(self, stmt: WhileStmt, ctx: _SSACtx):
+        stmts: list[Stmt] = []
+        # live variables after this statement
+        _, fvs = stmt.attribs[LiveVars.analysis_name]
+        # recurse on children
+        cond = self._visit(stmt.cond, ctx)
+        body, body_ctx = self._visit_block(stmt.body, ctx)
+        # like a 1-armed if
+        new_stmt = WhileStmt(cond, body)
+        stmts.append(new_stmt)
+
+        # create Phi nodes for live variables
+        old_names = [ctx.env[fv] for fv in fvs]
+        for fv, old_name in zip(fvs, old_names):
+            assert fv in body_ctx.env, f'variable {fv} not in iff_ctx'
+            ctx, renamed = ctx.fresh(fv)
+            assert isinstance(renamed, str), "expected string"
+            if body_ctx.env[fv] != old_name:
+                phi = Phi(renamed, old_name, body_ctx.env[fv], new_stmt)
+                stmts.append(phi)
+
+        return ctx, stmts
 
     def _visit_block(self, block, ctx: _SSACtx):
         stmts: list[Stmt] = []
         for stmt in block.stmts:
-            match stmt:
-                case Assign():
-                    ctx, renamed = self._rename_binding(stmt.var, ctx)
-                    assert isinstance(renamed, VarBinding), 'unexpected binding type'
-                    stmts.append(Assign(renamed, self._visit(stmt.val, ctx)))
-                case TupleAssign():
-                    ctx, renamed = self._rename_binding(stmt.binding, ctx)
-                    assert isinstance(renamed, TupleBinding), 'unexpected binding type'
-                    stmts.append(TupleAssign(renamed, self._visit(stmt.val, ctx)))
-                case Return():
-                    stmts.append(Return(self._visit(stmt.e, ctx)))
-                case IfStmt():
-                    # live variables after this statement
-                    _, fvs = stmt.attribs[LiveVars.analysis_name]
-                    # recurse on children
-                    cond = self._visit(stmt.cond, ctx)
-                    ift, ift_ctx = self._visit_block(stmt.ift, ctx)
-                    if stmt.iff is None:
-                        # 1-armed if
-                        new_stmt = IfStmt(cond, ift, None)
-                        stmts.append(new_stmt)
-
-                        # create Phi nodes for live variables
-                        old_names = [ctx.env[fv] for fv in fvs]
-                        for fv, old_name in zip(fvs, old_names):
-                            assert fv in ift_ctx.env, f'variable {fv} not in iff_ctx'
-                            ctx, renamed = ctx.fresh(fv)
-                            assert isinstance(renamed, str), "expected string"
-                            if ift_ctx.env[fv] != old_name:
-                                phi = Phi(renamed, old_name, ift_ctx.env[fv], new_stmt)
-                                stmts.append(phi)
-                    else:
-                        # 2-armed if
-                        iff, iff_ctx = self._visit_block(stmt.iff, ctx)
-                        new_stmt = IfStmt(cond, ift, iff)
-                        stmts.append(new_stmt)
-
-                        # create Phi nodes for live variables
-                        for fv in fvs:
-                            assert fv in ift_ctx.env, f'variable {fv} not in ift_ctx'
-                            assert fv in iff_ctx.env, f'variable {fv} not in iff_ctx'
-                            ctx, renamed = ctx.fresh(fv)
-                            assert isinstance(renamed, str), "expected string"
-                            if ift_ctx.env[fv] != iff_ctx.env[fv]:
-                                phi = Phi(renamed, ift_ctx.env[fv], iff_ctx.env[fv], new_stmt)
-                                stmts.append(phi)
-                case _:
-                    return NotImplementedError('unreachable', stmt)
+            ctx, new_stmts = self._visit(stmt, ctx)
+            stmts += new_stmts
         return Block(stmts), ctx
 
     def _visit_function(self, func: Function, ctx: _SSACtx):

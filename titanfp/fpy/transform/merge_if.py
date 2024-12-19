@@ -37,7 +37,7 @@ class MergeIf(DefaultTransformVisitor):
         """Collects all phi nodes corresponding to if statements."""
         if_to_phis: dict[IfStmt, list[Phi]] = {}
         for stmt in block.stmts:
-            if isinstance(stmt, Phi):
+            if isinstance(stmt, Phi) and isinstance(stmt.branch, IfStmt):
                 if stmt.branch in if_to_phis:
                     if_to_phis[stmt.branch].append(stmt)
                 else:
@@ -48,45 +48,37 @@ class MergeIf(DefaultTransformVisitor):
         stmts: list[Stmt] = []
         if_to_phis = self._if_phi_nodes(block)
         for stmt in block.stmts:
-            match stmt:
-                case Assign():
-                    stmts.append(self._visit(stmt, ctx))
-                case TupleAssign():
-                    stmts.append(self._visit(stmt, ctx))
-                case IfStmt():
-                    phis = if_to_phis.get(stmt, [])
-                    if phis == []:
-                        # 0 phi nodes, if statement has no effect
-                        # first, merge in if-true statements
-                        for s in self._visit_block(stmt.ift, ctx).stmts:
+            if isinstance(stmt, IfStmt):
+                phis = if_to_phis.get(stmt, [])
+                if phis == []:
+                    # 0 phi nodes, if statement has no effect
+                    # first, merge in if-true statements
+                    for s in self._visit_block(stmt.ift, ctx).stmts:
+                        stmts.append(s)
+                    # then, merge in if-false statements
+                    if stmt.iff is not None:
+                        for s in self._visit_block(stmt.iff, ctx).stmts:
                             stmts.append(s)
-                        # then, merge in if-false statements
-                        if stmt.iff is not None:
-                            for s in self._visit_block(stmt.iff, ctx).stmts:
-                                stmts.append(s)
-                    else:
-                        # emit temporary to store condition
-                        t = ctx.fresh('cond')
-                        stmts.append(Assign(VarBinding(t), self._visit(stmt.cond, ctx)))
-                        # first, merge in if-true statements
-                        for s in self._visit_block(stmt.ift, ctx).stmts:
+                else:
+                    # emit temporary to store condition
+                    t = ctx.fresh('cond')
+                    stmts.append(Assign(VarBinding(t), self._visit(stmt.cond, ctx)))
+                    # first, merge in if-true statements
+                    for s in self._visit_block(stmt.ift, ctx).stmts:
+                        stmts.append(s)
+                    # then, merge in if-false statements
+                    if stmt.iff is not None:
+                        for s in self._visit_block(stmt.iff, ctx).stmts:
                             stmts.append(s)
-                        # then, merge in if-false statements
-                        if stmt.iff is not None:
-                            for s in self._visit_block(stmt.iff, ctx).stmts:
-                                stmts.append(s)
-                        # translate phi nodes to if expressions
-                        for p in phis:
-                            ife = IfExpr(Var(t), Var(p.lhs), Var(p.rhs))
-                            stmts.append(Assign(VarBinding(p.name), ife))
-                case Phi():
-                    if not isinstance(stmt.branch, IfStmt):
-                        stmts.append(Phi(stmt.name, stmt.lhs, stmt.rhs, stmt.branch))
-                case Return():
-                    stmts.append(self._visit(stmt, ctx))
-                case _:
-                    raise NotImplementedError('unreachable', stmt)
-
+                    # translate phi nodes to if expressions
+                    for p in phis:
+                        ife = IfExpr(Var(t), Var(p.lhs), Var(p.rhs))
+                        stmts.append(Assign(VarBinding(p.name), ife))
+            elif isinstance(stmt, Phi):
+                if not isinstance(stmt.branch, IfStmt):
+                    stmts.append(Phi(stmt.name, stmt.lhs, stmt.rhs, stmt.branch))
+            else:
+                stmts.append(self._visit(stmt, ctx))
 
         return Block(stmts)
 

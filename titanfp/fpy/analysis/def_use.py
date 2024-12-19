@@ -118,6 +118,11 @@ class DefUse(Analysis):
             for name in ift_env.keys() & iff_env.keys():
                 merged[name] = ift_env[name]
             return merged
+        
+    def _visit_while_stmt(self, stmt, ctx: _DefUseCtx):
+        self._visit(stmt.cond, ctx)
+        self._visit(stmt.body, ctx)
+        return ctx.env
     
     def _visit_phi(self, stmt, ctx):
         ctx.record_use(stmt.lhs, stmt)
@@ -137,6 +142,8 @@ class DefUse(Analysis):
                 case Return():
                     self._visit(stmt, ctx)
                 case IfStmt():
+                    ctx = _DefUseCtx(self._visit(stmt, ctx))
+                case WhileStmt():
                     ctx = _DefUseCtx(self._visit(stmt, ctx))
                 case Phi():
                     self._visit(stmt, ctx)

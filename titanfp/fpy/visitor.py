@@ -105,6 +105,11 @@ class BaseVisitor(ABC):
         raise NotImplementedError('virtual method')
 
     @abstractmethod
+    def _visit_while_stmt(self, stmt: WhileStmt, ctx: Any):
+        """Visitor method for `WhileStmt` nodes."""
+        raise NotImplementedError('virtual method')
+
+    @abstractmethod
     def _visit_phi(self, stmt: Phi, ctx: Any):
         """Visitor method for `Phi` nodes."""
         raise NotImplementedError('virtual method')
@@ -120,6 +125,8 @@ class BaseVisitor(ABC):
                 return self._visit_return(stmt, ctx)
             case IfStmt():
                 return self._visit_if_stmt(stmt, ctx)
+            case WhileStmt():
+                return self._visit_while_stmt(stmt, ctx)
             case Phi():
                 return self._visit_phi(stmt, ctx)
             case _:
@@ -276,6 +283,11 @@ class DefaultTransformVisitor(TransformVisitor):
         ift = self._visit(stmt.ift, ctx)
         iff = self._visit(stmt.iff, ctx)
         return IfStmt(cond, ift, iff)
+    
+    def _visit_while_stmt(self, stmt, ctx):
+        cond = self._visit(stmt.cond, ctx)
+        body = self._visit(stmt.body, ctx)
+        return WhileStmt(cond, body)
     
     def _visit_phi(self, stmt, ctx: Any):
         return Phi(stmt.name, stmt.lhs, stmt.rhs, stmt.branch)
