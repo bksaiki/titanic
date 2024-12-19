@@ -1,10 +1,9 @@
 """Transformation pass to rewrite if statements to if expressions."""
 
+from ..gensym import Gensym
 from ..fpyast import *
 from ..visitor import DefaultTransformVisitor
-from ..analysis import DefUse, LiveVars
-from ..analysis.def_use import DefUseEnv
-
+from ..analysis import LiveVars, UniqueVars
 
 class MergeIf(DefaultTransformVisitor):
     """
@@ -34,50 +33,44 @@ class MergeIf(DefaultTransformVisitor):
     avoid namespace collisions. Likewise, `t` is some free variable.
     """
 
-    def_use: DefUse
-    """Definition-use analysis instance."""
+    def _if_phi_nodes(self, block: Block):
+        """Collects all phi nodes corresponding to if statements."""
+        if_to_phis: dict[IfStmt, list[Phi]] = {}
+        for stmt in block.stmts:
+            if isinstance(stmt, Phi):
+                if stmt.branch in if_to_phis:
+                    if_to_phis[stmt.branch].append(stmt)
+                else:
+                    if_to_phis[stmt.branch] = [stmt]
+        return if_to_phis
 
-    live_vars: LiveVars
-    """Live variable analysis instance."""
-
-    def __init__(self):
-        super().__init__()
-        self.def_use = DefUse()
-        self.live_vars = LiveVars()
-
-    def _visit_block(self, block, ctx: DefUseEnv):
-        new_stmts: list[Stmt] = []
-        for i, stmt in enumerate(block.stmts):
+    def _visit_block(self, block, ctx: Gensym):
+        stmts: list[Stmt] = []
+        if_to_phis = self._if_phi_nodes(block)
+        for stmt in block.stmts:
             match stmt:
-                case IfStmt():
-                    assert i + 1 < len(block.stmts), 'if statement must be followed by a statement'
-                    # variables in scope at the start of this statement
-                    in_scope = ctx.keys()
-                    # variables in scope at the start of each branch
-                    ift_scope = stmt.ift.attribs[self.def_use.name].keys()
-                    iff_scope = stmt.iff.attribs[self.def_use.name].keys()
-                    # free variables at the start of the next statement
-                    fvs = block.stmts[i+1].attribs[self.live_vars.name]
-
-                    print(in_scope, ift_scope, iff_scope, fvs)
-
-
-                    raise NotImplementedError(stmt, fvs)
+                case Assign():
+                    stmts.append(self._visit(stmt, ctx))
+                case TupleAssign():
+                    stmts.append(self._visit(stmt, ctx))
+                case Phi():
+                    if not isinstance(stmt.branch, IfStmt):
+                        stmts.append(Phi(stmt.name, stmt.lhs, stmt.rhs, stmt.branch))
+                case Return():
+                    stmts.append(self._visit(stmt, ctx))
                 case _:
-                    new_stmts.append(self._visit(stmt, ctx))
-        return Block(new_stmts)
+                    raise NotImplementedError('unreachable', stmt)
 
-    # override typing hint
-    def _visit(self, e, ctx: DefUseEnv):
-        return super()._visit(e, ctx)
+
+        return Block(stmts)
 
     def visit(self, e: Function | Block):
-        if not (isinstance(e, Function) or isinstance(e, Block)):
+        if not isinstance(e, Function | Block):
             raise TypeError(f'visit() argument 1 must be Function or Block, not {e}')
-        # definition-use analysis is required
-        if self.def_use.name not in e.attribs:
-            raise RuntimeError('must run DefUse analysis to use this transformation')
-        if self.live_vars.name not in e.attribs:
-            raise RuntimeError('must run LiveVars analysis to use this transformation')
-        ctx: DefUseEnv = e.attribs[self.def_use.name]
-        return self._visit(e, ctx)
+        # run live variables analysis (if needed)
+        if LiveVars.analysis_name not in e.attribs:
+            LiveVars().visit(e)
+
+        unique_vars = UniqueVars().visit(e)
+        return self._visit(e, Gensym(*unique_vars))
+    

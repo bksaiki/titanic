@@ -142,7 +142,7 @@ class SSA(DefaultTransformVisitor):
         if not isinstance(e, Function | Block):
             raise TypeError(f'visit() argument 1 must be Function or Block, not {e}')
         if LiveVars.analysis_name not in e.attribs:
-            raise RuntimeError('must run DefUse analysis to use this transformation')
+            raise RuntimeError('must run LiveVars analysis to use this transformation')
 
         ctx = _SSACtx()
         new = self._visit(e, ctx)

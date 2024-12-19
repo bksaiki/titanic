@@ -155,18 +155,18 @@ class FPCoreCompiler(ReduceVisitor):
     def _visit_block(self, block, ctx):
         def _build(stmts: list[Stmt]) -> fpc.Expr:
             assert stmts != [], 'block is unexpectedly empty'
-            match stmts:
-                case [Assign() as hd, *tl]:
-                    cls, bindings = self._visit_assign(hd, ctx)
-                    return cls(bindings, _build(tl))
-                case [TupleAssign() as hd, *tl]:
-                    cls, bindings = self._visit_tuple_assign(hd, ctx)
-                    return cls(bindings, _build(tl)) 
-                case [Return() as hd, *tl]:
-                    assert tl == [], 'return statements must be at the end of blocks'
-                    return self._visit_return(hd, ctx)
+            match stmts[0]:
+                case Assign():
+                    cls, bindings = self._visit_assign(stmts[0], ctx)
+                    return cls(bindings, _build(stmts[1:]))
+                case TupleAssign():
+                    cls, bindings = self._visit_tuple_assign(stmts[0], ctx)
+                    return cls(bindings, _build(stmts[1:]))
+                case Return():
+                    assert stmts[1:] == [], 'return statements must be at the end of blocks'
+                    return self._visit_return(stmts[0], ctx)
                 case _:
-                    raise NotImplementedError('unreachable', stmts)
+                    raise NotImplementedError('unreachable', stmts[0])
         return _build(block.stmts)
 
     #######################################################
@@ -198,8 +198,7 @@ class FPCoreCompiler(ReduceVisitor):
 
         # Normalizing transformations
         f, _ = SSA().visit(f)
-        # f = MergeIf().visit(f)
-
+        f = MergeIf().visit(f)
 
         return self._visit_function(f, None)
 

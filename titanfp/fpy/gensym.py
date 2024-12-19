@@ -14,8 +14,8 @@ class Gensym(object):
     _counter: int
 
     def __init__(self, *names: str):
-        self._names = set()
-        self._counter = 1
+        self._names = set(names)
+        self._counter = len(names)
 
     def reserve(self, *names: str):
         """Reserves a list of names."""
@@ -34,3 +34,6 @@ class Gensym(object):
 
     def __contains__(self, name: str):
         return name in self._names
+
+    def __len__(self):
+        return len(self._names)
