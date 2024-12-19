@@ -65,7 +65,7 @@ class MergeIf(DefaultTransformVisitor):
                             stmts.append(s)
                     else:
                         # emit temporary to store condition
-                        t = ctx.fresh()
+                        t = ctx.fresh('cond')
                         stmts.append(Assign(VarBinding(t), self._visit(stmt.cond, ctx)))
                         # first, merge in if-true statements
                         for s in self._visit_block(stmt.ift, ctx).stmts:

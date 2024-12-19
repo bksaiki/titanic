@@ -174,6 +174,47 @@ def azimuth(lat1: Real, lat2: Real, lon1: Real, lon2: Real):
     c_dLon = cos(dLon)
     return atan((c_lat2 * s_dLon) / ((c_lat1 * s_lat2) - (s_lat1 * c_lat2 * c_dLon)))
 
+# TODO: vectors should be tensors
+@fpcore(
+    name='Level-of-detail (LOD) algorithm, anisotropic case',
+    cite=['Microsoft-2015'],
+    strict=True
+)
+def lod_anisotropic(
+    dx_u : Real,
+    dx_v : Real,
+    dy_u : Real,
+    dy_v : Real,
+    max_aniso : Real,
+):
+    dx2 = dx_u ** 2 + dx_v ** 2
+    dy2 = dy_u ** 2 + dy_v ** 2
+    det = fabs(dx_u * dy_v - dx_v * dy_u)
+    x_major = dx2 > dy2
+    major2 = dx2 if x_major else dy2
+    major = sqrt(major2)
+    norm_major = 1.0 / major
+
+    aniso_dir_u = (dx_u if x_major else dy_u) * norm_major
+    aniso_dir_v = (dx_v if x_major else dy_v) * norm_major
+    aniso_ratio = major2 / det
+
+    # clamp anisotropy ratio and compute LOD
+    if aniso_ratio > max_aniso:
+        aniso_ratio = max_aniso
+        minor = major / aniso_ratio
+    else:
+        minor = det / major
+    
+    # clamp LOD
+    if minor < 1.0:
+        aniso_ratio = fmax(1.0, aniso_ratio * minor)
+
+    lod = log2(minor)
+
+    return lod, aniso_ratio, aniso_dir_u, aniso_dir_v
+
+
 ### Compile loop
 
 cores: list[Function] = [

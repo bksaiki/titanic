@@ -200,7 +200,7 @@ class FPCoreCompiler(ReduceVisitor):
             raise TypeError(f'expected Function: {f}')
 
         # Normalizing transformations
-        f, _ = SSA().visit(f)
+        f, replace_dict = SSA().visit(f)
         f = MergeIf().visit(f)
 
         return self._visit_function(f, None)

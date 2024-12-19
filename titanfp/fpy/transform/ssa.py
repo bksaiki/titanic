@@ -51,7 +51,7 @@ class _SSACtx:
             Returns the new context and the SSA name.
             """
             copy = _SSACtx(self)
-            renamed = copy.gensym.fresh()
+            renamed = copy.gensym.fresh(var)
             copy.orig[renamed] = var
             copy.env[var] = renamed
             return copy, renamed

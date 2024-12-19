@@ -23,8 +23,7 @@ class Gensym(object):
 
     def fresh(self, prefix: str = 't'):
         """Generates a unique name with a given prefix."""
-        name = f'{prefix}{self._counter}'
-        self._counter += 1
+        name = prefix
         while name in self._names:
             name = f'{prefix}{self._counter}'
             self._counter += 1
