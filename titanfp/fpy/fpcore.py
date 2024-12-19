@@ -152,6 +152,9 @@ class FPCoreCompiler(ReduceVisitor):
     def _visit_if_stmt(self, stmt, ctx):
         raise NotImplementedError
     
+    def _visit_phi(self, stmt, ctx):
+        raise NotImplementedError
+    
     def _visit_block(self, block, ctx):
         def _build(stmts: list[Stmt]) -> fpc.Expr:
             assert stmts != [], 'block is unexpectedly empty'

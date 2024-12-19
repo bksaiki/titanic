@@ -155,6 +155,10 @@ class SyntaxCheck(Analysis):
     def _visit_return(self, stmt, ctx: _CtxType):
         return self._visit(stmt.e, ctx)
 
+    def _visit_phi(self, stmt, ctx: _CtxType):
+        _, env = ctx
+        return env.add(stmt.name)
+
     def _visit_block(self, block, ctx: _CtxType):
         is_top, env = ctx
         has_return = False
@@ -172,6 +176,8 @@ class SyntaxCheck(Analysis):
                     env = self._visit(st, (False, env))
                     has_return = True
                 case IfStmt():
+                    env = self._visit(st, (False, env))
+                case Phi():
                     env = self._visit(st, (False, env))
                 case _:
                     raise NotImplementedError('unreachable', st)

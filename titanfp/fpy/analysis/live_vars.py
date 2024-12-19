@@ -82,11 +82,15 @@ class LiveVars(Analysis):
     def _visit_return(self, stmt, ctx: _ResultType) -> _ResultType:
         return ctx.union(self._visit(stmt.e, None))
 
-    def _visit_if_stmt(self, stmt, ctx) -> _ResultType:
+    def _visit_if_stmt(self, stmt, ctx: _ResultType) -> _ResultType:
         ift_fvs = self._visit(stmt.ift, ctx)
         iff_fvs = self._visit(stmt.iff, ctx)
         cond_fvs = self._visit(stmt.cond, None)
         return cond_fvs.union(ift_fvs, iff_fvs)
+    
+    def _visit_phi(self, stmt, ctx: _ResultType) -> _ResultType:
+        fvs = ctx.difference(stmt.name)
+        return { *fvs, stmt.lhs, stmt.rhs }
 
     def _visit_block(self, block, ctx: Optional[_ResultType]) -> _ResultType:
         # analysis runs in reverse, but visitor runs in forward order:
@@ -106,6 +110,8 @@ class LiveVars(Analysis):
                 case Return():
                     # no subsequent expression after a return statement
                     ctx = self._visit(stmt, set())
+                case Phi():
+                    ctx = self._visit(stmt, ctx)
                 case _:
                     raise NotImplementedError('unreachable', stmt)
         

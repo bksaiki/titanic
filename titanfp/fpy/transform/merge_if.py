@@ -44,7 +44,7 @@ class MergeIf(DefaultTransformVisitor):
                     if_to_phis[stmt.branch] = [stmt]
         return if_to_phis
 
-    def _visit_block(self, block, ctx: Gensym):
+    def _visit_block(self, block: Block, ctx: Gensym) -> Block:
         stmts: list[Stmt] = []
         if_to_phis = self._if_phi_nodes(block)
         for stmt in block.stmts:
@@ -53,6 +53,30 @@ class MergeIf(DefaultTransformVisitor):
                     stmts.append(self._visit(stmt, ctx))
                 case TupleAssign():
                     stmts.append(self._visit(stmt, ctx))
+                case IfStmt():
+                    phis = if_to_phis.get(stmt, [])
+                    if phis == []:
+                        # 0 phi nodes, if statement has no effect
+                        # first, merge in if-true statements
+                        for s in self._visit_block(stmt.ift, ctx).stmts:
+                            stmts.append(s)
+                        # then, merge in if-false statements
+                        for s in self._visit_block(stmt.iff, ctx).stmts:
+                            stmts.append(s)
+                    else:
+                        # emit temporary to store condition
+                        t = ctx.fresh()
+                        stmts.append(Assign(VarBinding(t), self._visit(stmt.cond, ctx)))
+                        # first, merge in if-true statements
+                        for s in self._visit_block(stmt.ift, ctx).stmts:
+                            stmts.append(s)
+                        # then, merge in if-false statements
+                        for s in self._visit_block(stmt.iff, ctx).stmts:
+                            stmts.append(s)
+                        # translate phi nodes to if expressions
+                        for p in phis:
+                            ife = IfExpr(Var(t), Var(p.lhs), Var(p.rhs))
+                            stmts.append(Assign(VarBinding(p.name), ife))
                 case Phi():
                     if not isinstance(stmt.branch, IfStmt):
                         stmts.append(Phi(stmt.name, stmt.lhs, stmt.rhs, stmt.branch))

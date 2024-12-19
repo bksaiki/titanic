@@ -114,6 +114,10 @@ class DefUse(Analysis):
         for name in ift_env.keys() & iff_env.keys():
             merged[name] = ift_env[name]
         return merged
+    
+    def _visit_phi(self, stmt, ctx):
+        ctx.record_use(stmt.lhs, stmt)
+        ctx.record_use(stmt.rhs, stmt)
 
     def _visit_block(self, block, ctx: _DefUseCtx):
         for stmt in block.stmts:
@@ -130,6 +134,9 @@ class DefUse(Analysis):
                     self._visit(stmt, ctx)
                 case IfStmt():
                     ctx = _DefUseCtx(self._visit(stmt, ctx))
+                case Phi():
+                    self._visit(stmt, ctx)
+                    ctx = ctx.extend(stmt.name, stmt)
                 case _:
                     raise NotImplementedError('unreachable', stmt)
         return ctx.env

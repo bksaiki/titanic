@@ -104,6 +104,11 @@ class BaseVisitor(ABC):
         """Visitor method for `IfStmt` nodes."""
         raise NotImplementedError('virtual method')
 
+    @abstractmethod
+    def _visit_phi(self, stmt: Phi, ctx: Any):
+        """Visitor method for `Phi` nodes."""
+        raise NotImplementedError('virtual method')
+
     def _visit_statement(self, stmt: Stmt, ctx: Any):
         """Dynamic dispatch for all statements."""
         match stmt:
@@ -115,6 +120,8 @@ class BaseVisitor(ABC):
                 return self._visit_return(stmt, ctx)
             case IfStmt():
                 return self._visit_if_stmt(stmt, ctx)
+            case Phi():
+                return self._visit_phi(stmt, ctx)
             case _:
                 raise NotImplementedError('no visitor method for', stmt)
 
@@ -269,6 +276,9 @@ class DefaultTransformVisitor(TransformVisitor):
         ift = self._visit(stmt.ift, ctx)
         iff = self._visit(stmt.iff, ctx)
         return IfStmt(cond, ift, iff)
+    
+    def _visit_phi(self, stmt, ctx: Any):
+        return Phi(stmt.name, stmt.lhs, stmt.rhs, stmt.branch)
 
     def _visit_block(self, block: Block, ctx: Any):
         return Block([self._visit(s, ctx) for s in block.stmts])

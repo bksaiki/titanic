@@ -51,7 +51,7 @@ class _SSACtx:
             Returns the new context and the SSA name.
             """
             copy = _SSACtx(self)
-            renamed = copy.gensym.fresh(var)
+            renamed = copy.gensym.fresh()
             copy.orig[renamed] = var
             copy.env[var] = renamed
             return copy, renamed
@@ -84,13 +84,13 @@ class SSA(DefaultTransformVisitor):
     def _visit_assign(self, stmt, ctx):
         raise NotImplementedError('do not call directly')
 
-    def _visit_tuple_assign(self, stmt, ctx: _SSACtx) -> tuple[TupleAssign, _SSACtx]:
+    def _visit_tuple_assign(self, stmt, ctx: _SSACtx):
         raise NotImplementedError('do not call directly')
 
-    def _visit_return(self, stmt, ctx: _SSACtx) -> tuple[Return, _SSACtx]:
+    def _visit_return(self, stmt, ctx: _SSACtx):
         raise NotImplementedError('do not call directly')
 
-    def _visit_if_stmt(self, stmt, ctx: _SSACtx) -> tuple[IfStmt, _SSACtx]:
+    def _visit_if_stmt(self, stmt, ctx: _SSACtx):
         raise NotImplementedError('do not call directly')
 
     def _visit_block(self, block, ctx: _SSACtx):
@@ -111,7 +111,8 @@ class SSA(DefaultTransformVisitor):
                     cond = self._visit(stmt.cond, ctx)
                     ift, ift_ctx = self._visit_block(stmt.ift, ctx)
                     iff, iff_ctx = self._visit_block(stmt.iff, ctx)
-                    stmts.append(IfStmt(cond, ift, iff))
+                    new_stmt = IfStmt(cond, ift, iff)
+                    stmts.append(new_stmt)
                     # live variables after this statement
                     # need to merge them with Phi nodes
                     fvs = block.stmts[i + 1].attribs[LiveVars.analysis_name]
@@ -119,7 +120,7 @@ class SSA(DefaultTransformVisitor):
                         assert fv in ift_ctx.env, f'variable {fv} not in ift_ctx'
                         assert fv in iff_ctx.env, f'variable {fv} not in iff_ctx'
                         ctx, renamed = ctx.fresh(fv)
-                        stmts.append(Phi(renamed, ift_ctx.env[fv], iff_ctx.env[fv], stmt))
+                        stmts.append(Phi(renamed, ift_ctx.env[fv], iff_ctx.env[fv], new_stmt))
                 case _:
                     return NotImplementedError('unreachable', stmt)
         return Block(stmts), ctx

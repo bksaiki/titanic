@@ -55,6 +55,9 @@ class UniqueVars(ReduceVisitor):
         iff_vars = self._visit(stmt.iff, ctx)
         return cond_vars.union(ift_vars, iff_vars)
 
+    def _visit_phi(self, stmt, ctx) -> _ResultType:
+        return { stmt.name, stmt.lhs, stmt.rhs }
+
     def _visit_block(self, block, ctx) -> _ResultType:
         vars: set[str] = set()
         for stmt in block.stmts:
