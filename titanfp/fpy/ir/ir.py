@@ -2,10 +2,10 @@
 This module contains the intermediate representation (IR).
 """
 
-from enum import Enum
 from typing import Self
 
 from .types import IRType
+from ..utils import CompareOp
 
 class IR:
     """FPy IR: base class for all IR nodes."""
@@ -16,13 +16,13 @@ class IR:
         return f'{name}({items})'
 
 class Expr(IR):
-    """FPy AST: expression"""
+    """FPy IR: expression"""
 
 class Stmt(IR):
-    """FPy AST: statement"""
+    """FPy IR: statement"""
 
 class Block(Stmt):
-    """FPy AST: block statement"""
+    """FPy IR: block statement"""
     stmts: list[Stmt]
 
     def __init__(self, stmts: list[Stmt]):
@@ -338,14 +338,6 @@ class And(NaryExpr):
 
 # Comparisons
 
-class CompareOp(Enum):
-    LT = 0
-    LE = 1
-    GE = 2
-    GT = 3
-    EQ = 4
-    NE = 5
-
 class Compare(Expr):
     """FPy node: N-argument comparison (N >= 2)"""
     ops: list[CompareOp]
@@ -391,7 +383,7 @@ class VarAssign(Stmt):
         self.expr = expr
 
 class TupleBinding(IR):
-    """FPy AST: tuple binding"""
+    """FPy IR: tuple binding"""
     elts: list[str | Self]
 
     def __init__(self, elts: list[str | Self]):
@@ -410,7 +402,7 @@ class TupleAssign(Stmt):
         self.val = val
 
 class If1Stmt(Stmt):
-    """FPy AST: one-armed if statement"""
+    """FPy IR: one-armed if statement"""
     cond: Expr
     body: Block
 
@@ -419,7 +411,7 @@ class If1Stmt(Stmt):
         self.body = body
 
 class IfStmt(Stmt):
-    """FPy AST: if statement"""
+    """FPy IR: if statement"""
     cond: Expr
     ift: Block
     iff: Block
@@ -430,7 +422,7 @@ class IfStmt(Stmt):
         self.iff = iff
 
 class WhileStmt(Stmt):
-    """FPy AST: while statement"""
+    """FPy IR: while statement"""
     cond: Expr
     body: Block
 
@@ -439,7 +431,7 @@ class WhileStmt(Stmt):
         self.body = body
 
 class ForStmt(Stmt):
-    """FPy AST: for statement"""
+    """FPy IR: for statement"""
     var: str
     ty: IRType
     iter: Expr
@@ -452,14 +444,14 @@ class ForStmt(Stmt):
         self.body = body
 
 class Return(Stmt):
-    """FPy AST: return statement"""
+    """FPy IR: return statement"""
     expr: Expr
 
     def __init__(self, expr: Expr):
         self.expr = expr
 
 class Argument(IR):
-    """FPy AST: function argument"""
+    """FPy IR: function argument"""
     name: str
     ty: IRType
 
@@ -468,7 +460,7 @@ class Argument(IR):
         self.ty = ty
 
 class Function(IR):
-    """FPy AST: function"""
+    """FPy IR: function"""
     name: str
     args: list[Argument]
     body: Block

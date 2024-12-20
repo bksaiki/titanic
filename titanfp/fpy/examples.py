@@ -169,6 +169,13 @@ def test_while1():
         x = 1
     return x
 
+@fpcore
+def test_for1():
+    j = 0
+    for i in range(5):
+        j = j + i
+    return j
+
 ### Examples
 
 @fpcore(
@@ -285,6 +292,8 @@ cores: list[Function] = [
     test_if2,
     test_if3,
     test_if4,
+    test_while1,
+    test_for1,
     # Examples
     nmse3_1,
     instCurrent,

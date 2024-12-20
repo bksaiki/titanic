@@ -4,6 +4,7 @@ Decorators for the FPy language.
 
 import inspect
 
+from .codegen import IRCodegen
 from .fpyast import Function
 from .live_vars import LiveVars
 from .parser import Parser
@@ -21,17 +22,22 @@ def fpcore(*args, **kwargs):
         if not callable(func):
             raise TypeError('fpcore() requires a callable object')
 
-        # Read the original source of the function
+        # read the original source of the function
         sourcename = inspect.getabsfile(func)
         lines, start_line = inspect.getsourcelines(func)
         source = ''.join(lines)
         
-        # Parser the source as an FPy function
+        # parse the source as an FPy function
         parser = Parser(sourcename, source, start_line)
         ast = parser.parse()
         assert isinstance(ast, Function), "must be a function"
+
+        # analyze and lower to the IR
         LiveVars().analyze(ast)
-        return ast
+        ir = IRCodegen().lower(ast)
+        # print(ir)
+        return ir
+
 
     # handle any arguments to the decorator
     match args:

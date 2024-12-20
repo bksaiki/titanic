@@ -20,64 +20,65 @@ def _ipow(expr: Expr, n: int, loc: Location):
         return reduce(f, [expr for _ in range(n)])
 
 _unary_table = {
-    "fabs": UnaryOpKind.FABS,
-    "sqrt": UnaryOpKind.SQRT,
-    "cbrt": UnaryOpKind.CBRT,
-    "ceil": UnaryOpKind.CEIL,
-    "floor": UnaryOpKind.FLOOR,
-    "nearbyint": UnaryOpKind.NEARBYINT,
-    "round": UnaryOpKind.ROUND,
-    "trunc": UnaryOpKind.TRUNC,
-    "acos": UnaryOpKind.ACOS,
-    "asin": UnaryOpKind.ASIN,
-    "atan": UnaryOpKind.ATAN,
-    "cos": UnaryOpKind.COS,
-    "sin": UnaryOpKind.SIN,
-    "tan": UnaryOpKind.TAN,
-    "acosh": UnaryOpKind.ACOSH,
-    "asinh": UnaryOpKind.ASINH,
-    "atanh": UnaryOpKind.ATANH,
-    "cosh": UnaryOpKind.COSH,
-    "sinh": UnaryOpKind.SINH,
-    "tanh": UnaryOpKind.TANH,
-    "exp": UnaryOpKind.EXP,
-    "exp2": UnaryOpKind.EXP2,
-    "expm1": UnaryOpKind.EXPM1,
-    "log": UnaryOpKind.LOG,
-    "log10": UnaryOpKind.LOG10,
-    "log1p": UnaryOpKind.LOG1P,
-    "log2": UnaryOpKind.LOG2,
-    "erf": UnaryOpKind.ERF,
-    "erfc": UnaryOpKind.ERFC,
-    "lgamma": UnaryOpKind.LGAMMA,
-    "tgamma": UnaryOpKind.TGAMMA,
-    "isfinite": UnaryOpKind.ISFINITE,
-    "isinf": UnaryOpKind.ISINF,
-    "isnan": UnaryOpKind.ISNAN,
-    "isnormal": UnaryOpKind.ISNORMAL,
-    "signbit": UnaryOpKind.SIGNBIT,
-    "not": UnaryOpKind.NOT
+    'fabs': UnaryOpKind.FABS,
+    'sqrt': UnaryOpKind.SQRT,
+    'cbrt': UnaryOpKind.CBRT,
+    'ceil': UnaryOpKind.CEIL,
+    'floor': UnaryOpKind.FLOOR,
+    'nearbyint': UnaryOpKind.NEARBYINT,
+    'round': UnaryOpKind.ROUND,
+    'trunc': UnaryOpKind.TRUNC,
+    'acos': UnaryOpKind.ACOS,
+    'asin': UnaryOpKind.ASIN,
+    'atan': UnaryOpKind.ATAN,
+    'cos': UnaryOpKind.COS,
+    'sin': UnaryOpKind.SIN,
+    'tan': UnaryOpKind.TAN,
+    'acosh': UnaryOpKind.ACOSH,
+    'asinh': UnaryOpKind.ASINH,
+    'atanh': UnaryOpKind.ATANH,
+    'cosh': UnaryOpKind.COSH,
+    'sinh': UnaryOpKind.SINH,
+    'tanh': UnaryOpKind.TANH,
+    'exp': UnaryOpKind.EXP,
+    'exp2': UnaryOpKind.EXP2,
+    'expm1': UnaryOpKind.EXPM1,
+    'log': UnaryOpKind.LOG,
+    'log10': UnaryOpKind.LOG10,
+    'log1p': UnaryOpKind.LOG1P,
+    'log2': UnaryOpKind.LOG2,
+    'erf': UnaryOpKind.ERF,
+    'erfc': UnaryOpKind.ERFC,
+    'lgamma': UnaryOpKind.LGAMMA,
+    'tgamma': UnaryOpKind.TGAMMA,
+    'isfinite': UnaryOpKind.ISFINITE,
+    'isinf': UnaryOpKind.ISINF,
+    'isnan': UnaryOpKind.ISNAN,
+    'isnormal': UnaryOpKind.ISNORMAL,
+    'signbit': UnaryOpKind.SIGNBIT,
+    'not': UnaryOpKind.NOT,
+    'range': UnaryOpKind.RANGE
 }
 
 _binary_table = {
-    "add": BinaryOpKind.ADD,
-    "sub": BinaryOpKind.SUB,
-    "mul": BinaryOpKind.MUL,
-    "div": BinaryOpKind.DIV,
-    "copysign": BinaryOpKind.COPYSIGN,
-    "fdim": BinaryOpKind.FDIM,
-    "fmax": BinaryOpKind.FMAX,
-    "fmin": BinaryOpKind.FMIN,
-    "fmod": BinaryOpKind.FMOD,
-    "remainder": BinaryOpKind.REMAINDER,
-    "hypot": BinaryOpKind.HYPOT,
-    "atan2": BinaryOpKind.ATAN2,
-    "pow": BinaryOpKind.POW
+    'add': BinaryOpKind.ADD,
+    'sub': BinaryOpKind.SUB,
+    'mul': BinaryOpKind.MUL,
+    'div': BinaryOpKind.DIV,
+    'copysign': BinaryOpKind.COPYSIGN,
+    'fdim': BinaryOpKind.FDIM,
+    'fmax': BinaryOpKind.FMAX,
+    'fmin': BinaryOpKind.FMIN,
+    'fmod': BinaryOpKind.FMOD,
+    'remainder': BinaryOpKind.REMAINDER,
+    'hypot': BinaryOpKind.HYPOT,
+    'atan2': BinaryOpKind.ATAN2,
+    'pow': BinaryOpKind.POW
 }
 
 _ternary_table = {
-    "fma": TernaryOpKind.FMA,
-    "digits": TernaryOpKind.DIGITS
+    'fma': TernaryOpKind.FMA,
+    'digits': TernaryOpKind.DIGITS
 }
 
 class FPyParserError(Exception):
@@ -184,7 +185,10 @@ class Parser:
                 return cast(Expr, arg)
             case ast.USub():
                 arg = self._parse_expr(e.operand)
-                return UnaryOp(UnaryOpKind.NEG, arg, loc)
+                if isinstance(arg, Integer):
+                    return Integer(-arg.val, loc)
+                else:
+                    return UnaryOp(UnaryOpKind.NEG, arg, loc)
             case ast.Not():
                 arg = self._parse_expr(e.operand)
                 return UnaryOp(UnaryOpKind.NOT, arg, loc)
@@ -356,9 +360,20 @@ class Parser:
                     iff = self._parse_statements(stmt.orelse)
                     return IfStmt(cond, ift, iff, loc)
             case ast.While():
+                if stmt.orelse != []:
+                    raise FPyParserError(loc, 'FPy does not support else clause in while statement', stmt)
                 cond = self._parse_expr(stmt.test)
                 block = self._parse_statements(stmt.body)
                 return WhileStmt(cond, block, loc)
+            case ast.For():
+                if stmt.orelse != []:
+                    raise FPyParserError(loc, 'FPy does not support else clause in for statement', stmt)
+                if not isinstance(stmt.target, ast.Name):
+                    raise FPyParserError(loc, 'FPy expects an identifier', stmt)
+                var = stmt.target.id
+                iterable = self._parse_expr(stmt.iter)
+                block = self._parse_statements(stmt.body)
+                return ForStmt(var, iterable, block, loc)
             case ast.Return():
                 if stmt.value is None:
                     raise FPyParserError(loc, 'Return statement must have value', stmt)

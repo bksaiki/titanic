@@ -6,6 +6,7 @@ from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional, Self
+from ..utils import CompareOp
 
 @dataclass
 class Location:
@@ -132,6 +133,8 @@ class UnaryOpKind(Enum):
     ISNAN = 35
     ISNORMAL = 36
     SIGNBIT = 37
+    # unary generator
+    RANGE = 38
 
 class UnaryOp(Expr):
     """FPy AST: unary operation"""
@@ -191,23 +194,23 @@ class TernaryOpKind(Enum):
 class TernaryOp(Expr):
     """FPy AST: ternary operation"""
     op: TernaryOpKind
+    arg0: Expr
     arg1: Expr
     arg2: Expr
-    arg3: Expr
 
     def __init__(
         self,
         op: TernaryOpKind,
+        arg0: Expr,
         arg1: Expr,
         arg2: Expr,
-        arg3: Expr,
         loc: Location
     ):
         super().__init__(loc)
         self.op = op
+        self.arg0 = arg0
         self.arg1 = arg1
         self.arg2 = arg2
-        self.arg3 = arg3
 
 class NaryOpKind(Enum):
     OR = 2
@@ -242,14 +245,6 @@ class Call(Expr):
         super().__init__(loc)
         self.op = op
         self.args = args
-
-class CompareOp(Enum):
-    LT = 0
-    LE = 1
-    GE = 2
-    GT = 3
-    EQ = 4
-    NE = 5
 
 class Compare(Expr):
     """FPy AST: comparison chain"""
@@ -403,19 +398,19 @@ class WhileStmt(Stmt):
 class ForStmt(Stmt):
     """FPy AST: for statement"""
     var: str
-    iter: Expr
+    iterable: Expr
     body: Block
 
     def __init__(
         self,
         var: str,
-        iter: Expr,
+        iterable: Expr,
         body: Block,
         loc: Location
     ):
         super().__init__(loc)
         self.var = var
-        self.iter = iter
+        self.iterable = iterable
         self.body = body
 
 class Return(Stmt):

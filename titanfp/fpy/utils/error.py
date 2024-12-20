@@ -1,4 +1,4 @@
-
+"""Errors and warnings specific to FPy"""
 
 from typing import Any
 
