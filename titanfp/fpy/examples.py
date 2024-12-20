@@ -1,6 +1,5 @@
-from .fpcore import fpy_to_fpcore
-from .fpyast import Function
 from .frontend.decorator import fpcore
+from .ir import Function
 from .typing import *
 
 ### Simple tests
@@ -184,6 +183,14 @@ def test_for1():
         j = j + i
     return j
 
+@fpcore
+def test_for2():
+    accum = 0
+    for i in range(5):
+        for j in range(5):
+            accum = accum + i * j
+    return accum
+
 ### Examples
 
 @fpcore(
@@ -301,7 +308,9 @@ cores: list[Function] = [
     test_if3,
     test_if4,
     test_while1,
+    test_while2,
     test_for1,
+    test_for2,
     # Examples
     nmse3_1,
     instCurrent,

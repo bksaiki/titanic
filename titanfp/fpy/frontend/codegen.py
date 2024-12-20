@@ -9,7 +9,7 @@ from .live_vars import LiveVarAnalysis
 from .visitor import AstVisitor
 
 from .. import ir
-from ..gensym import Gensym
+from ..utils import Gensym
 
 _CtxType = dict[str, str]
 
