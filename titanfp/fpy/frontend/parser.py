@@ -7,7 +7,7 @@ import ast
 from functools import reduce
 from typing import cast
 
-from .ast import *
+from .fpyast import *
 
 def _ipow(expr: Expr, n: int):
     assert n >= 0, "must be a non-negative integer"
@@ -148,12 +148,11 @@ class Parser:
             case ast.FunctionDef():
                 return self._parse_function(ptree)
             case ast.expr():
-                raise NotImplementedError
+                return self._parse_expr(ptree)
             case ast.stmt():
-                raise NotImplementedError
+                return self._parse_statement(ptree)
             case _:
                 raise NotImplementedError('cannot parse', ptree)
-
 
     def _parse_location(self, e: ast.expr | ast.stmt) -> Location:
         """Extracts the parse location of a  Python ST node."""
@@ -291,6 +290,12 @@ class Parser:
                     arg1 = self._parse_expr(e.args[1])
                     arg2 = self._parse_expr(e.args[2])
                     return TernaryOp(_ternary_table[name], arg0, arg1, arg2)
+                elif name == 'or':
+                    args = [self._parse_expr(arg) for arg in e.args]
+                    return NaryOp(NaryOpKind.OR, args, loc)
+                elif name == 'and':
+                    args = [self._parse_expr(arg) for arg in e.args]
+                    return NaryOp(NaryOpKind.AND, args, loc)
                 else:
                     return Call(name, [self._parse_expr(arg) for arg in e.args], loc)
             case ast.Tuple():

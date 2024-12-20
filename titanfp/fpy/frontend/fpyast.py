@@ -89,21 +89,6 @@ class Integer(ValueExpr):
         super().__init__(loc)
         self.val = val
 
-class Call(Expr):
-    """FPy AST: function call"""
-    op: str
-    args: list[Expr]
-
-    def __init__(
-        self,
-        op: str,
-        args: list[Expr],
-        loc: Optional[Location] = None
-    ):
-        super().__init__(loc)
-        self.op = op
-        self.args = args
-
 class UnaryOpKind(Enum):
     # unary operators
     NEG = 0
@@ -221,6 +206,40 @@ class TernaryOp(Expr):
         self.arg1 = arg1
         self.arg2 = arg2
         self.arg3 = arg3
+
+class NaryOpKind(Enum):
+    OR = 2
+    AND = 1
+
+class NaryOp(Expr):
+    """FPy AST: n-ary operation"""
+    op: NaryOpKind
+    args: list[Expr]
+
+    def __init__(
+        self,
+        op: NaryOpKind,
+        args: list[Expr],
+        loc: Optional[Location] = None
+    ):
+        super().__init__(loc)
+        self.op = op
+        self.args = args
+
+class Call(Expr):
+    """FPy AST: function call"""
+    op: str
+    args: list[Expr]
+
+    def __init__(
+        self,
+        op: str,
+        args: list[Expr],
+        loc: Optional[Location] = None
+    ):
+        super().__init__(loc)
+        self.op = op
+        self.args = args
 
 class CompareOp(Enum):
     LT = 0
