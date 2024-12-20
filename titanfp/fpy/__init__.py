@@ -1,1 +1,1 @@
-from .parser import fpcore
+from .frontend.decorator import fpcore

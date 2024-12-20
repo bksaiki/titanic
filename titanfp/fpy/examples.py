@@ -1,6 +1,6 @@
 from .fpcore import fpy_to_fpcore
 from .fpyast import Function
-from .parser import fpcore
+from .frontend.decorator import fpcore
 from .typing import *
 
 ### Simple tests
@@ -293,5 +293,6 @@ cores: list[Function] = [
 ]
 
 for core in cores:
-    fpc = fpy_to_fpcore(core)
-    print(fpc.sexp)
+    print(core)
+    # fpc = fpy_to_fpcore(core)
+    # print(fpc.sexp)
