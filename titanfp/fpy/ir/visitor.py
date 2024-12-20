@@ -3,14 +3,18 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from .fpyast import *
-from .ops import op_info
+from .ir import *
 
 class BaseVisitor(ABC):
-    """Visitor base class for FPy programs"""
+    """Visitor base class for the FPy IR."""
 
     #######################################################
     # Expressions
+
+    @abstractmethod
+    def _visit_var(self, e: Var, ctx: Any):
+        """Visitor method for `Var` nodes."""
+        raise NotImplementedError('virtual method')
 
     @abstractmethod
     def _visit_decnum(self, e: Decnum, ctx: Any):
@@ -28,28 +32,23 @@ class BaseVisitor(ABC):
         raise NotImplementedError('virtual method')
 
     @abstractmethod
-    def _visit_variable(self, e: Var, ctx: Any):
-        """Visitor method for `Var` nodes."""
-        raise NotImplementedError('virtual method')
-    
-    @abstractmethod
-    def _visit_array(self, e: Array, ctx: Any):
-        """Visitor method for `ArrayExpr` nodes."""
-        raise NotImplementedError('virtual method')
-    
-    @abstractmethod
     def _visit_unknown(self, e: UnknownCall, ctx: Any):
         """Visitor method for `UnknownCall` nodes."""
         raise NotImplementedError('virtual method')
-    
+
     @abstractmethod
     def _visit_nary_expr(self, e: NaryExpr, ctx: Any):
         """Visitor method for `NaryExpr` nodes."""
         raise NotImplementedError('virtual method')
-    
+
     @abstractmethod
     def _visit_compare(self, e: Compare, ctx: Any):
         """Visitor method for `Compare` nodes."""
+        raise NotImplementedError('virtual method')
+
+    @abstractmethod
+    def _visit_tuple_expr(self, e: TupleExpr, ctx: Any):
+        """Visitor method for `TupleExpr` nodes."""
         raise NotImplementedError('virtual method')
 
     @abstractmethod
@@ -57,46 +56,22 @@ class BaseVisitor(ABC):
         """Visitor method for `IfExpr` nodes."""
         raise NotImplementedError('virtual method')
 
-    def _visit_expr(self, e: Expr, ctx: Any):
-        """Dynamic dispatch for all `Expr` nodes."""
-        match e:
-            case Decnum():
-                return self._visit_decnum(e, ctx)
-            case Integer():
-                return self._visit_integer(e, ctx)
-            case Digits():
-                return self._visit_digits(e, ctx)
-            case Var():
-                return self._visit_variable(e, ctx)
-            case Array():
-                return self._visit_array(e, ctx)
-            case UnknownCall():
-                return self._visit_unknown(e, ctx)
-            case NaryExpr():
-                return self._visit_nary_expr(e, ctx)
-            case Compare():
-                return self._visit_compare(e, ctx)
-            case IfExpr():
-                return self._visit_if_expr(e, ctx)
-            case _:
-                raise NotImplementedError('no visitor method for', e)
-
     #######################################################
     # Statements
 
     @abstractmethod
-    def _visit_assign(self, stmt: Assign, ctx: Any):
-        """Visitor method for `Assign` nodes."""
+    def _visit_var_assign(self, stmt: VarAssign, ctx: Any):
+        """Visitor method for `VarAssign` nodes."""
         raise NotImplementedError('virtual method')
 
     @abstractmethod
     def _visit_tuple_assign(self, stmt: TupleAssign, ctx: Any):
         """Visitor method for `TupleAssign` nodes."""
         raise NotImplementedError('virtual method')
-
+    
     @abstractmethod
-    def _visit_return(self, stmt: Return, ctx: Any):
-        """Visitor method for `Return` nodes."""
+    def _visit_if1_stmt(self, stmt: If1Stmt, ctx: Any):
+        """Visitor method for `If1Stmt` nodes."""
         raise NotImplementedError('virtual method')
 
     @abstractmethod
@@ -110,27 +85,17 @@ class BaseVisitor(ABC):
         raise NotImplementedError('virtual method')
 
     @abstractmethod
-    def _visit_phi(self, stmt: Phi, ctx: Any):
-        """Visitor method for `Phi` nodes."""
+    def _visit_for_stmt(self, stmt: ForStmt, ctx: Any):
+        """Visitor method for `ForStmt` nodes."""
         raise NotImplementedError('virtual method')
 
-    def _visit_statement(self, stmt: Stmt, ctx: Any):
-        """Dynamic dispatch for all statements."""
-        match stmt:
-            case Assign():
-                return self._visit_assign(stmt, ctx)
-            case TupleAssign():
-                return self._visit_tuple_assign(stmt, ctx)
-            case Return():
-                return self._visit_return(stmt, ctx)
-            case IfStmt():
-                return self._visit_if_stmt(stmt, ctx)
-            case WhileStmt():
-                return self._visit_while_stmt(stmt, ctx)
-            case Phi():
-                return self._visit_phi(stmt, ctx)
-            case _:
-                raise NotImplementedError('no visitor method for', stmt)
+    @abstractmethod
+    def _visit_return(self, stmt: Return, ctx: Any):
+        """Visitor method for `Return` nodes."""
+        raise NotImplementedError('virtual method')
+
+    #######################################################
+    # Block
 
     @abstractmethod
     def _visit_block(self, block: Block, ctx: Any):
@@ -148,47 +113,68 @@ class BaseVisitor(ABC):
     #######################################################
     # Dynamic dispatch
 
+    def _visit_expr(self, e: Expr, ctx: Any):
+        """Dynamic dispatch for all `Expr` nodes."""
+        match e:
+            case Var():
+                return self._visit_var(e, ctx)
+            case Decnum():
+                return self._visit_decnum(e, ctx)
+            case Integer():
+                return self._visit_integer(e, ctx)
+            case Digits():
+                return self._visit_digits(e, ctx)
+            case UnknownCall():
+                return self._visit_unknown(e, ctx)
+            case NaryExpr():
+                return self._visit_nary_expr(e, ctx)
+            case Compare():
+                return self._visit_compare(e, ctx)
+            case TupleExpr():
+                return self._visit_tuple_expr(e, ctx)
+            case IfExpr():
+                return self._visit_if_expr(e, ctx)
+            case _:
+                raise NotImplementedError('no visitor method for', e)
+
+    def _visit_statement(self, stmt: Stmt, ctx: Any):
+        """Dynamic dispatch for all statements."""
+        match stmt:
+            case VarAssign():
+                return self._visit_var_assign(stmt, ctx)
+            case TupleAssign():
+                return self._visit_tuple_assign(stmt, ctx)
+            case If1Stmt():
+                return self._visit_if1_stmt(stmt, ctx)
+            case IfStmt():
+                return self._visit_if_stmt(stmt, ctx)
+            case WhileStmt():
+                return self._visit_while_stmt(stmt, ctx)
+            case ForStmt():
+                return self._visit_for_stmt(stmt, ctx)
+            case Return():
+                return self._visit_return(stmt, ctx)
+            case _:
+                raise NotImplementedError('no visitor method for', stmt)
+
     def _visit(self, e: Expr | Stmt | Block | Function, ctx: Any):
         """Dynamic dispatch for all primary `AST` nodes."""
         match e:
-            case Function():
-                return self._visit_function(e, ctx)
-            case Stmt():
-                return self._visit_statement(e, ctx)
             case Expr():
                 return self._visit_expr(e, ctx)
+            case Stmt():
+                return self._visit_statement(e, ctx)
             case Block():
                 return self._visit_block(e, ctx)
+            case Function():
+                return self._visit_function(e, ctx)
             case _:
                 raise NotImplementedError('no visitor method for', e)
-            
-    #######################################################
-    # Entry
-
-    @abstractmethod
-    def visit(self, *args, **kwargs):
-        raise NotImplementedError('virtual method')
 
 # Derived visitor types
 
-class Analysis(BaseVisitor):
+class Visitor(BaseVisitor):
     """Visitor base class for analyzing FPy programs."""
-
-    name: Optional[str]
-    """AST attribute name."""
-
-    record: bool
-    """Should the analyzer add attributes to the AST."""
-
-    def __init__(self, name: Optional[str] = None, record: bool = False):
-        self.name = name
-        self.record = record
-
-    def _visit(self, e, ctx):
-        val = super()._visit(e, ctx)
-        if self.name is not None and self.record:
-            e.attribs[self.name] = val
-        return val
 
 class ReduceVisitor(BaseVisitor):
     """Visitor base class for reducing FPy programs to a value."""
@@ -196,13 +182,16 @@ class ReduceVisitor(BaseVisitor):
 class TransformVisitor(BaseVisitor):
     """Visitor base class for transforming FPy programs"""
 
-# Default visitor types
+# Default visitor implementations
 
 class DefaultTransformVisitor(TransformVisitor):
     """Default transform visitor: identity operation on an FPy program."""
 
     #######################################################
     # Expressions
+
+    def _visit_var(self, e, ctx):
+        return Var(e.name)
 
     def _visit_decnum(self, e, ctx: Any):
         return Decnum(e.val)
@@ -212,37 +201,24 @@ class DefaultTransformVisitor(TransformVisitor):
     
     def _visit_digits(self, e, ctx: Any):
         return Digits(e.m, e.e, e.b)
-    
-    def _visit_variable(self, e, ctx: Any):
-        return Var(e.name)
-
-    def _visit_array(self, e, ctx: Any):
-        return Array(*[self._visit(c, ctx) for c in e.children])
 
     def _visit_unknown(self, e, ctx: Any):
         return UnknownCall(*[self._visit(c, ctx) for c in e.children])
 
     def _visit_nary_expr(self, e, ctx: Any):
-        info = op_info(e.name)
-        if info is None:
-            raise NotImplementedError('unreachable', e)
-        
-        match info.arity:
-            case 1:
+        match e:
+            case UnaryExpr():
                 arg0 = self._visit(e.children[0], ctx)
-                return info.fpy(arg0)
-            case 2:
+                return type(e)(arg0)
+            case BinaryExpr():
                 arg0 = self._visit(e.children[0], ctx)
                 arg1 = self._visit(e.children[1], ctx)
-                return info.fpy(arg0, arg1)
-            case 3:
+                return type(e)(arg0, arg1)
+            case TernaryExpr():
                 arg0 = self._visit(e.children[0], ctx)
                 arg1 = self._visit(e.children[1], ctx)
                 arg2 = self._visit(e.children[2], ctx)
-                return info.fpy(arg0, arg1, arg2)
-            case None:
-                args = [self._visit(c, ctx) for c in e.children]
-                return info.fpy(*args)
+                return type(e)(arg0, arg1, arg2)
             case _:
                 raise NotImplementedError('unreachable', e)
 
@@ -251,6 +227,9 @@ class DefaultTransformVisitor(TransformVisitor):
         children = [self._visit(c, ctx) for c in e.children]
         return Compare(ops, children)
     
+    def _visit_tuple_expr(self, e, ctx):
+        return TupleExpr(*[self._visit(c, ctx) for c in e.children])
+
     def _visit_if_expr(self, e, ctx: Any):
         cond = self._visit(e.cond, ctx)
         ift = self._visit(e.ift, ctx)
@@ -260,37 +239,47 @@ class DefaultTransformVisitor(TransformVisitor):
     #######################################################
     # Statements
 
-    def _copy_binding(self, binding: Binding):
-        match binding:
-            case VarBinding():
-                return VarBinding(binding.name)
-            case TupleBinding():
-                return TupleBinding(*[self._copy_binding(b) for b in binding.bindings])
-            case _:
-                raise NotImplementedError('unexpected', binding)
-    
-    def _visit_assign(self, stmt, ctx: Any):
-        return Assign(self._copy_binding(stmt.var), self._visit(stmt.val, ctx), stmt.ann)
+    def _visit_var_assign(self, stmt, ctx: Any):
+        val = self._visit(stmt.expr, ctx)
+        return VarAssign(stmt.var, stmt.ty, val)
+
+    def _copy_tuple_binding(self, binding: TupleBinding):
+        new_vars: list[str | TupleBinding] = []
+        for elt in binding:
+            if isinstance(elt, str):
+                new_vars.append(elt)
+            elif isinstance(elt, TupleBinding):
+                new_vars.append(self._copy_tuple_binding(elt))
+            else:
+                raise NotImplementedError('unexpected tuple element', elt)
+        return TupleBinding(new_vars)
 
     def _visit_tuple_assign(self, stmt, ctx: Any):
-        return TupleAssign(self._copy_binding(stmt.binding), self._visit(stmt.val, ctx))
-
-    def _visit_return(self, stmt, ctx: Any):
-        return Return(self._visit(stmt.e, ctx))
+        vars = self._copy_tuple_binding(stmt.vars)
+        val = self._visit(stmt.expr, ctx)
+        return TupleAssign(vars, stmt.ty, val)
 
     def _visit_if_stmt(self, stmt, ctx: Any):
         cond = self._visit(stmt.cond, ctx)
         ift = self._visit(stmt.ift, ctx)
         iff = self._visit(stmt.iff, ctx)
-        return IfStmt(cond, ift, iff)
+        return IfStmt(cond, ift, iff, dict(stmt.phis))
     
     def _visit_while_stmt(self, stmt, ctx):
         cond = self._visit(stmt.cond, ctx)
         body = self._visit(stmt.body, ctx)
-        return WhileStmt(cond, body)
+        return WhileStmt(cond, body, dict(stmt.phis))
+
+    def _visit_for_stmt(self, stmt, ctx):
+        iter = self._visit(stmt.iter, ctx)
+        body = self._visit(stmt.body, ctx)
+        return ForStmt(stmt.var, stmt.ty, iter, body, dict(stmt.phis))
+
+    def _visit_return(self, stmt, ctx: Any):
+        return Return(self._visit(stmt.expr, ctx))
     
-    def _visit_phi(self, stmt, ctx: Any):
-        return Phi(stmt.name, stmt.lhs, stmt.rhs, stmt.branch)
+    #######################################################
+    # Block
 
     def _visit_block(self, block: Block, ctx: Any):
         return Block([self._visit(s, ctx) for s in block.stmts])
@@ -299,11 +288,4 @@ class DefaultTransformVisitor(TransformVisitor):
     # Function
 
     def _visit_function(self, func, ctx: Any):
-        return Function(
-            args=[arg for arg in func.args],
-            body=self._visit(func.body, ctx),
-            ctx=Context(func.ctx.props),
-            ident=func.ident,
-            name=func.name,
-            pre=func.pre
-        )
+        return Function(func.name, func.args, self._visit(func.body, ctx), func.ty)

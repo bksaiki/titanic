@@ -36,9 +36,7 @@ def fpcore(*args, **kwargs):
         # analyze and lower to the IR
         DefinitionAnalysis().analyze(ast)
         LiveVarAnalysis().analyze(ast)
-        ir = IRCodegen().lower(ast)
-        print(ir)
-        return ir
+        return IRCodegen().lower(ast)
 
 
     # handle any arguments to the decorator

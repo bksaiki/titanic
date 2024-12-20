@@ -237,7 +237,7 @@ class _IRCodegenInstance(AstVisitor):
         ctx = { **ctx, stmt.var: t }
         e = self._visit(stmt.expr, ctx)
         s = ir.VarAssign(t, ir.AnyType(), e)
-        return [s], ctx
+        return s, ctx
     
     def _compile_tuple_binding(self, vars: TupleBinding, ctx: _CtxType):
         new_vars: list[str | ir.TupleBinding] = []
@@ -258,7 +258,7 @@ class _IRCodegenInstance(AstVisitor):
         e = self._visit(stmt.expr, ctx)
         tys = ir.TensorType([ir.AnyType() for _ in stmt.vars])
         s = ir.TupleAssign(vars, tys, e)
-        return [s], ctx
+        return s, ctx
 
     def _visit_if1_stmt(self, stmt: IfStmt, ctx: _CtxType):
         """Like `_visit_if_stmt`, but for 1-armed if statements."""
@@ -279,7 +279,7 @@ class _IRCodegenInstance(AstVisitor):
                 new_ctx[name] = ctx[name]
         # create new statement
         s = ir.If1Stmt(cond, body, phis)
-        return [s], new_ctx
+        return s, new_ctx
     
     def _visit_if2_stmt(self, stmt: IfStmt, ctx: _CtxType):
         """Like `_visit_if_stmt`, but for 2-armed if statements."""
@@ -307,7 +307,7 @@ class _IRCodegenInstance(AstVisitor):
                 new_ctx[name] = ctx[name]
         # create new statement
         s = ir.IfStmt(cond, ift, iff, phis)
-        return [s], new_ctx
+        return s, new_ctx
 
     def _visit_if_stmt(self, stmt, ctx: _CtxType):
         if stmt.iff is None:
@@ -354,7 +354,7 @@ class _IRCodegenInstance(AstVisitor):
                 new_ctx[name] = changed_map[name]
             else:
                 new_ctx[name] = ctx[name]
-        return [s], new_ctx
+        return s, new_ctx
 
     def _visit_for_stmt(self, stmt, ctx: _CtxType):
         cond = self._visit(stmt.iterable, ctx)
@@ -395,37 +395,17 @@ class _IRCodegenInstance(AstVisitor):
                 new_ctx[name] = changed_map[name]
             else:
                 new_ctx[name] = ctx[name]
-        return [s], new_ctx
+        return s, new_ctx
 
     def _visit_return(self, stmt, ctx: _CtxType):
         e = self._visit(stmt.expr, ctx)
-        s = ir.Return(e)
-        return [s], set()
+        return ir.Return(e), set()
 
     def _visit_block(self, block, ctx: _CtxType):
         stmts: list[ir.Stmt] = []
         for stmt in block.stmts:
-            match stmt:
-                case VarAssign():
-                    new_stmts, ctx = self._visit(stmt, ctx)
-                    stmts.extend(new_stmts)
-                case TupleAssign():
-                    new_stmts, ctx = self._visit(stmt, ctx)
-                    stmts.extend(new_stmts)
-                case IfStmt():
-                    new_stmts, ctx = self._visit(stmt, ctx)
-                    stmts.extend(new_stmts)
-                case WhileStmt():
-                    new_stmts, ctx = self._visit(stmt, ctx)
-                    stmts.extend(new_stmts)
-                case ForStmt():
-                    new_stmts, ctx = self._visit(stmt, ctx)
-                    stmts.extend(new_stmts)
-                case Return():
-                    new_stmts, ctx = self._visit(stmt, ctx)
-                    stmts.extend(new_stmts)
-                case _:
-                    raise NotImplementedError('unexpected statement', stmt)
+            new_stmt, ctx = self._visit(stmt, ctx)
+            stmts.append(new_stmt)
         return ir.Block(stmts), ctx
 
     def _visit_function(self, func, ctx: _CtxType):

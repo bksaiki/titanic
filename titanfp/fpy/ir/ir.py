@@ -21,7 +21,7 @@ class Expr(IR):
 class Stmt(IR):
     """FPy IR: statement"""
 
-class Block(Stmt):
+class Block(IR):
     """FPy IR: block statement"""
     stmts: list[Stmt]
 
@@ -395,16 +395,19 @@ class TupleBinding(IR):
     def __init__(self, elts: list[str | Self]):
         self.elts = elts
 
+    def __iter__(self):
+        return iter(self.elts)
+
 class TupleAssign(Stmt):
     """FPy node: assignment to a tuple"""
     vars: TupleBinding
     ty: IRType
-    val: Expr
+    expr: Expr
 
-    def __init__(self, vars: TupleBinding, ty: IRType, val: Expr):
+    def __init__(self, vars: TupleBinding, ty: IRType, expr: Expr):
         self.vars = vars
         self.ty = ty
-        self.val = val
+        self.expr = expr
 
 PhiNodes = dict[str, tuple[str, str]]
 """Type of phi nodes embedded in statements."""
