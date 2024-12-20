@@ -3,9 +3,10 @@ This module does intermediate code generation, compiling
 the abstract syntax tree (AST) to the intermediate representation (IR).
 """
 
+from .definition import DefinitionAnalysis
 from .fpyast import *
+from .live_vars import LiveVarAnalysis
 from .visitor import AstVisitor
-from .live_vars import LiveVars
 
 from .. import ir
 from ..gensym import Gensym
@@ -134,7 +135,7 @@ class _IRCodegenInstance(AstVisitor):
         """Like `_visit_if_stmt`, but for 1-armed if statements."""
         cond = self._visit(stmt.cond, ctx)
         body, body_ctx = self._visit_block(stmt.ift, ctx)
-        _, live_out = stmt.attribs[LiveVars.analysis_name]
+        _, live_out = stmt.attribs[LiveVarAnalysis.analysis_name]
         # merge live variables and create new context
         phis: ir.PhiNodes = dict()
         new_ctx: _CtxType = dict()
@@ -157,7 +158,7 @@ class _IRCodegenInstance(AstVisitor):
         cond = self._visit(stmt.cond, ctx)
         ift, ift_ctx = self._visit_block(stmt.ift, ctx)
         iff, iff_ctx = self._visit_block(stmt.iff, ctx)
-        _, live_out = stmt.attribs[LiveVars.analysis_name]
+        _, live_out = stmt.attribs[LiveVarAnalysis.analysis_name]
         # merge live variables
         phis: ir.PhiNodes = dict()
         new_ctx: _CtxType = dict()
@@ -175,6 +176,7 @@ class _IRCodegenInstance(AstVisitor):
             else:
                 # variable not mutated => keep the same name
                 new_ctx[name] = ctx[name]
+        # create new statement
         s = ir.IfStmt(cond, ift, iff, phis)
         return [s], new_ctx
 
@@ -185,10 +187,61 @@ class _IRCodegenInstance(AstVisitor):
             return self._visit_if2_stmt(stmt, ctx)
 
     def _visit_while_stmt(self, stmt, ctx: _CtxType):
-        raise NotImplementedError
+        # merge variables initialized before the block that are updated
+        # in the body of the loop
+        live_in, live_out = stmt.attribs[LiveVarAnalysis.analysis_name]
+        live_cond = stmt.cond.attribs[LiveVarAnalysis.analysis_name]
+        live_body, _ = stmt.body.attribs[LiveVarAnalysis.analysis_name]
+        _, def_out = stmt.body.attribs[DefinitionAnalysis.analysis_name]
+    
+        changed_vars: set[str] = live_in & def_out
+        live_loop: set[str] = live_cond | live_body
+        # generate fresh variables for all changed variables
+        changed_map: dict[str, str] = dict()
+        for name in changed_vars:
+            t = self.gensym.fresh(name)
+            changed_map[name] = t
+        # create the new context for the loop
+        loop_ctx: _CtxType = dict()
+        for name in live_loop:
+            if name in changed_map:
+                loop_ctx[name] = changed_map[name]
+            else:
+                loop_ctx[name] = ctx[name]
+        print(live_in, live_loop, live_out, ctx, loop_ctx)
+        # compile the condition and body using the loop context
+        cond = self._visit(stmt.cond, loop_ctx)
+        body, body_ctx = self._visit_block(stmt.body, loop_ctx)
+        # merge all changed variables using phi nodes
+        phis: ir.PhiNodes = dict()
+        for name, t in changed_map.items():
+            old_name = ctx[name]
+            new_name = body_ctx[name]
+            assert old_name != new_name, 'must be different by definition analysis'
+            phis[t] = (old_name, new_name)
+        # create new statement and context
+        s = ir.WhileStmt(cond, body, phis)
+        new_ctx: _CtxType = dict()
+        for name in live_out:
+            if name in changed_map:
+                new_ctx[name] = changed_map[name]
+            else:
+                new_ctx[name] = ctx[name]
+        return [s], new_ctx
 
     def _visit_for_stmt(self, stmt, ctx: _CtxType):
-        raise NotImplementedError
+        # merge variables initialized before the block that are updated
+        # in the body of the loop
+        # merge variables initialized before the block that are updated
+        # in the body of the loop
+        live_in, live_out = stmt.attribs[LiveVarAnalysis.analysis_name]
+        live_iter = stmt.iterable.attribs[LiveVarAnalysis.analysis_name]
+        live_body, _ = stmt.body.attribs[LiveVarAnalysis.analysis_name]
+        _, def_out = stmt.body.attribs[DefinitionAnalysis.analysis_name]
+
+        changed_vars: set[str] = live_in & def_out
+        live_loop: set[str] = live_iter | live_body
+        raise NotImplementedError(changed_vars, live_in, live_body, live_out, ctx)
 
     def _visit_return(self, stmt, ctx: _CtxType):
         e = self._visit(stmt.expr, ctx)
@@ -206,6 +259,12 @@ class _IRCodegenInstance(AstVisitor):
                     new_stmts, ctx = self._visit(stmt, ctx)
                     stmts.extend(new_stmts)
                 case IfStmt():
+                    new_stmts, ctx = self._visit(stmt, ctx)
+                    stmts.extend(new_stmts)
+                case WhileStmt():
+                    new_stmts, ctx = self._visit(stmt, ctx)
+                    stmts.extend(new_stmts)
+                case ForStmt():
                     new_stmts, ctx = self._visit(stmt, ctx)
                     stmts.extend(new_stmts)
                 case Return():

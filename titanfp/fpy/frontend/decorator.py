@@ -6,7 +6,8 @@ import inspect
 
 from .codegen import IRCodegen
 from .fpyast import Function
-from .live_vars import LiveVars
+from .live_vars import LiveVarAnalysis
+from .definition import DefinitionAnalysis
 from .parser import Parser
 
 def fpcore(*args, **kwargs):
@@ -33,7 +34,8 @@ def fpcore(*args, **kwargs):
         assert isinstance(ast, Function), "must be a function"
 
         # analyze and lower to the IR
-        LiveVars().analyze(ast)
+        DefinitionAnalysis().analyze(ast)
+        LiveVarAnalysis().analyze(ast)
         ir = IRCodegen().lower(ast)
         print(ir)
         return ir

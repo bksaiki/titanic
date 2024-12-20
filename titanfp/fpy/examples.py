@@ -170,6 +170,14 @@ def test_while1():
     return x
 
 @fpcore
+def test_while2():
+    x = 0
+    t = 1
+    while x < 1:
+        x = 1
+    return x + t
+
+@fpcore
 def test_for1():
     j = 0
     for i in range(5):

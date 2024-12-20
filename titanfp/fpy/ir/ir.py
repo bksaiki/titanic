@@ -431,10 +431,12 @@ class WhileStmt(Stmt):
     """FPy IR: while statement"""
     cond: Expr
     body: Block
+    phis: PhiNodes
 
-    def __init__(self, cond: Expr, body: Block):
+    def __init__(self, cond: Expr, body: Block, phis: PhiNodes):
         self.cond = cond
         self.body = body
+        self.phis = phis
 
 class ForStmt(Stmt):
     """FPy IR: for statement"""
