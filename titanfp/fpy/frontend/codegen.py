@@ -3,10 +3,10 @@ This module does intermediate code generation, compiling
 the abstract syntax tree (AST) to the intermediate representation (IR).
 """
 
-from typing import Any
-
 from .fpyast import *
 from .visitor import AstVisitor
+from .live_vars import LiveVars
+
 from .. import ir
 from ..gensym import Gensym
 
@@ -86,9 +86,7 @@ class _IRCodegenInstance(AstVisitor):
 
     def _visit_compare(self, e, ctx: _CtxType):
         args: list[ir.Expr] = [self._visit(arg, ctx) for arg in e.args]
-        
-
-        raise NotImplementedError
+        return ir.Compare(e.ops, args)
 
     def _visit_call(self, e, ctx: _CtxType):
         args: list[ir.Expr]  = [self._visit(arg, ctx) for arg in e.args]
@@ -109,13 +107,82 @@ class _IRCodegenInstance(AstVisitor):
         ctx = { **ctx, stmt.var: t }
         e = self._visit(stmt.expr, ctx)
         s = ir.VarAssign(t, ir.AnyType(), e)
-        return [s], ctx 
+        return [s], ctx
+    
+    def _compile_tuple_binding(self, vars: TupleBinding, ctx: _CtxType):
+        new_vars: list[str | ir.TupleBinding] = []
+        for name in vars:
+            if isinstance(name, str):
+                new_vars.append(ctx[name])
+            elif isinstance(name, TupleBinding):
+                new_vars.append(self._compile_tuple_binding(name, ctx))
+            else:
+                raise NotImplementedError('unexpected tuple identifier', name)
+        return ir.TupleBinding(new_vars)
 
     def _visit_tuple_assign(self, stmt, ctx: _CtxType):
-        raise NotImplementedError
+        for name in stmt.vars.names():
+            t = self.gensym.fresh(name)
+            ctx = { **ctx, name: t }
+        vars = self._compile_tuple_binding(stmt.vars, ctx)
+        e = self._visit(stmt.expr, ctx)
+        tys = ir.TensorType([ir.AnyType() for _ in stmt.vars])
+        s = ir.TupleAssign(vars, tys, e)
+        return [s], ctx
+
+    def _visit_if1_stmt(self, stmt: IfStmt, ctx: _CtxType):
+        """Like `_visit_if_stmt`, but for 1-armed if statements."""
+        cond = self._visit(stmt.cond, ctx)
+        body, body_ctx = self._visit_block(stmt.ift, ctx)
+        _, live_out = stmt.attribs[LiveVars.analysis_name]
+        # merge live variables and create new context
+        phis: ir.PhiNodes = dict()
+        new_ctx: _CtxType = dict()
+        for name in live_out:
+            old_name = ctx[name]
+            new_name = body_ctx[name]
+            if old_name != new_name:
+                t = self.gensym.fresh(name)
+                phis[t] = (old_name, new_name)
+                new_ctx[name] = t
+            else:
+                new_ctx[name] = ctx[name]
+        # create new statement
+        s = ir.If1Stmt(cond, body, phis)
+        return [s], new_ctx
+    
+    def _visit_if2_stmt(self, stmt: IfStmt, ctx: _CtxType):
+        """Like `_visit_if_stmt`, but for 2-armed if statements."""
+        assert stmt.iff is not None, 'expected a 2-armed if statement'
+        cond = self._visit(stmt.cond, ctx)
+        ift, ift_ctx = self._visit_block(stmt.ift, ctx)
+        iff, iff_ctx = self._visit_block(stmt.iff, ctx)
+        _, live_out = stmt.attribs[LiveVars.analysis_name]
+        # merge live variables
+        phis: ir.PhiNodes = dict()
+        new_ctx: _CtxType = dict()
+        for name in live_out:
+            # well-formedness means that the variable is in both contexts
+            ift_name = ift_ctx.get(name, None)
+            iff_name = iff_ctx.get(name, None)
+            assert ift_name is not None, f'variable not in true branch {ift_name}'
+            assert iff_name is not None, f'variable not in false branch {iff_name}'
+            if ift_name != iff_name:
+                # variable updated on at least one branch => create phi node
+                t = self.gensym.fresh(name)
+                phis[t] = (ift_name, iff_name)
+                new_ctx[name] = t
+            else:
+                # variable not mutated => keep the same name
+                new_ctx[name] = ctx[name]
+        s = ir.IfStmt(cond, ift, iff, phis)
+        return [s], new_ctx
 
     def _visit_if_stmt(self, stmt, ctx: _CtxType):
-        raise NotImplementedError
+        if stmt.iff is None:
+            return self._visit_if1_stmt(stmt, ctx)
+        else:
+            return self._visit_if2_stmt(stmt, ctx)
 
     def _visit_while_stmt(self, stmt, ctx: _CtxType):
         raise NotImplementedError
@@ -133,11 +200,17 @@ class _IRCodegenInstance(AstVisitor):
         for stmt in block.stmts:
             match stmt:
                 case VarAssign():
-                    new_stms, ctx = self._visit(stmt, ctx)
-                    stmts.extend(new_stms)
+                    new_stmts, ctx = self._visit(stmt, ctx)
+                    stmts.extend(new_stmts)
+                case TupleAssign():
+                    new_stmts, ctx = self._visit(stmt, ctx)
+                    stmts.extend(new_stmts)
+                case IfStmt():
+                    new_stmts, ctx = self._visit(stmt, ctx)
+                    stmts.extend(new_stmts)
                 case Return():
-                    new_stms, ctx = self._visit(stmt, ctx)
-                    stmts.extend(new_stms)
+                    new_stmts, ctx = self._visit(stmt, ctx)
+                    stmts.extend(new_stmts)
                 case _:
                     raise NotImplementedError('unexpected statement', stmt)
         return ir.Block(stmts), ctx

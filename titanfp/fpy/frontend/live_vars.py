@@ -17,7 +17,7 @@ class LiveVars(AstVisitor):
         self._visit(func, set())
 
     def _visit_var(self, e, ctx) -> _LiveSet:
-        return { e.name}
+        return { e.name }
 
     def _visit_decnum(self, e, ctx) -> _LiveSet:
         return set()
@@ -67,58 +67,48 @@ class LiveVars(AstVisitor):
         iff_live = self._visit(e.iff, ctx)
         return cond_live | ift_live | iff_live
 
-    def _visit_var_assign(self, stmt, ctx) -> _LiveSet:
-        raise NotImplementedError('do not call directly')
+    def _visit_var_assign(self, stmt, ctx: _LiveSet) -> _LiveSet:
+        ctx -= {stmt.var}
+        return ctx | self._visit(stmt.expr, None)
 
-    def _visit_tuple_assign(self, stmt, ctx) -> _LiveSet:
-        raise NotImplementedError('do not call directly')
+    def _visit_tuple_assign(self, stmt, ctx: _LiveSet) -> _LiveSet:
+        ctx -= stmt.vars.names()
+        return ctx | self._visit(stmt.expr, None)
 
-    def _visit_if_stmt(self, stmt, ctx) -> _LiveSet:
-        raise NotImplementedError('do not call directly')
+    def _visit_if_stmt(self, stmt, ctx: _LiveSet) -> _LiveSet:
+        if stmt.iff is None:
+            ctx |= self._visit(stmt.ift, set(ctx))
+        else:
+            ift_ctx = self._visit(stmt.ift, set(ctx))
+            iff_ctx = self._visit(stmt.iff, set(ctx))
+            ctx = ift_ctx | iff_ctx
+        return ctx | self._visit(stmt.cond, None)
 
-    def _visit_while_stmt(self, stmt, ctx) -> _LiveSet:
-        raise NotImplementedError('do not call directly')
+    def _visit_while_stmt(self, stmt, ctx: _LiveSet) -> _LiveSet:
+        ctx |= self._visit(stmt.body, set(ctx))
+        return ctx | self._visit(stmt.cond, None)
 
-    def _visit_for_stmt(self, stmt, ctx) -> _LiveSet:
-        raise NotImplementedError('do not call directly')
+    def _visit_for_stmt(self, stmt, ctx: _LiveSet) -> _LiveSet:
+        ctx |= self._visit(stmt.body, set(ctx))
+        ctx -= {stmt.var}
+        return ctx | self._visit(stmt.iterable, None)
 
-    def _visit_return(self, stmt, ctx) -> _LiveSet:
-        raise NotImplementedError('do not call directly')
+    def _visit_return(self, stmt, ctx: _LiveSet) -> _LiveSet:
+        return self._visit(stmt.expr, None)
 
     def _visit_block(self, block, ctx: _LiveSet) -> _LiveSet:
-        block_out_live = set(ctx)
-        live = set(block_out_live)
+        block_out = set(ctx)
         for i, stmt in enumerate(reversed(block.stmts)):
-            out_live = set(live)
-            match stmt:
-                case VarAssign():
-                    live -= {stmt.var}
-                    live |= self._visit(stmt.expr, None)
-                case TupleAssign():
-                    live -= stmt.vars.names()
-                    live |= self._visit(stmt.expr, None)
-                case IfStmt():
-                    if stmt.iff is not None:
-                        live |= self._visit(stmt.iff, ctx)
-                    live |= self._visit(stmt.ift, ctx)
-                    live |= self._visit(stmt.cond, None)
-                case WhileStmt():
-                    live |= self._visit(stmt.body, ctx)
-                    live |= self._visit(stmt.cond, None)
-                case ForStmt():
-                    live |= self._visit(stmt.body, ctx)
-                    live -= {stmt.var}
-                    live |= self._visit(stmt.iterable, None)
-                case Return():
-                    assert i == 0, 'return statement must be the last statement'
-                    out_live = set() # override incoming out set
-                    live = self._visit(stmt.expr, None)
-                case _:
-                    raise NotImplementedError('unexpected statement', stmt)
-            stmt.attribs[self.analysis_name] = (set(live), out_live)
-        
-        stmt.attribs[self.analysis_name] = (set(live), block_out_live)
-        return live
+            if isinstance(stmt, Return):
+                assert i == 0, 'return statement must be the last statement'
+                stmt_out = set() # override incoming out set
+            else:
+                stmt_out = set(ctx)
+            ctx = self._visit(stmt, ctx)
+            stmt.attribs[self.analysis_name] = (set(ctx), stmt_out)
+
+        block.attribs[self.analysis_name] = (set(ctx), block_out)
+        return ctx
 
     def _visit_function(self, func, ctx: _LiveSet):
         self._visit(func.body, ctx)

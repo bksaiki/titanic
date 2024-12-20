@@ -346,6 +346,9 @@ class TupleBinding(Ast):
             else:
                 raise NotImplementedError('unexpected tuple identifier', v)
         return ids
+    
+    def __iter__(self):
+        return iter(self.vars)
 
 class TupleAssign(Stmt):
     """FPy AST: tuple assignment"""

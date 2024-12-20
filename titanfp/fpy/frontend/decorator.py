@@ -35,7 +35,7 @@ def fpcore(*args, **kwargs):
         # analyze and lower to the IR
         LiveVars().analyze(ast)
         ir = IRCodegen().lower(ast)
-        # print(ir)
+        print(ir)
         return ir
 
 

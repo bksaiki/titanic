@@ -392,34 +392,40 @@ class TupleBinding(IR):
 class TupleAssign(Stmt):
     """FPy node: assignment to a tuple"""
     vars: TupleBinding
-    tys: list[IRType]
+    ty: IRType
     val: Expr
 
-    def __init__(self, vars: TupleBinding, tys: list[IRType], val: Expr):
-        assert len(vars.elts) == len(tys), "length mismatch"
+    def __init__(self, vars: TupleBinding, ty: IRType, val: Expr):
         self.vars = vars
-        self.tys = tys
+        self.ty = ty
         self.val = val
+
+PhiNodes = dict[str, tuple[str, str]]
+"""Type of phi nodes embedded in statements."""
 
 class If1Stmt(Stmt):
     """FPy IR: one-armed if statement"""
     cond: Expr
     body: Block
+    phis: PhiNodes
 
-    def __init__(self, cond: Expr, body: Block):
+    def __init__(self, cond: Expr, body: Block, phis: PhiNodes):
         self.cond = cond
         self.body = body
+        self.phis = phis
 
 class IfStmt(Stmt):
     """FPy IR: if statement"""
     cond: Expr
     ift: Block
     iff: Block
+    phis: PhiNodes
 
-    def __init__(self, cond: Expr, ift: Block, iff: Block):
+    def __init__(self, cond: Expr, ift: Block, iff: Block, phis: PhiNodes):
         self.cond = cond
         self.ift = ift
         self.iff = iff
+        self.phis = phis
 
 class WhileStmt(Stmt):
     """FPy IR: while statement"""
