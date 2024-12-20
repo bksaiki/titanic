@@ -5,6 +5,7 @@ Decorators for the FPy language.
 import inspect
 
 from .fpyast import Function
+from .live_vars import LiveVars
 from .parser import Parser
 
 def fpcore(*args, **kwargs):
@@ -29,7 +30,7 @@ def fpcore(*args, **kwargs):
         parser = Parser(sourcename, source, start_line)
         ast = parser.parse()
         assert isinstance(ast, Function), "must be a function"
-
+        LiveVars().analyze(ast)
         return ast
 
     # handle any arguments to the decorator

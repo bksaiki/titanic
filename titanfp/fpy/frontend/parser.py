@@ -9,14 +9,15 @@ from typing import cast
 
 from .fpyast import *
 
-def _ipow(expr: Expr, n: int):
+def _ipow(expr: Expr, n: int, loc: Location):
     assert n >= 0, "must be a non-negative integer"
     if n == 0:
-        return Integer(1)
+        return Integer(1, loc)
     elif n == 1:
         return expr
     else:
-        return reduce(lambda lhs, rhs: BinaryOp(BinaryOpKind.MUL, lhs, rhs), [expr for _ in range(n)])
+        f = lambda lhs, rhs: BinaryOp(BinaryOpKind.MUL, lhs, rhs, loc)
+        return reduce(f, [expr for _ in range(n)])
 
 _unary_table = {
     "fabs": UnaryOpKind.FABS,
@@ -183,10 +184,10 @@ class Parser:
                 return cast(Expr, arg)
             case ast.USub():
                 arg = self._parse_expr(e.operand)
-                return UnaryOp(UnaryOpKind.NEG, arg)
+                return UnaryOp(UnaryOpKind.NEG, arg, loc)
             case ast.Not():
                 arg = self._parse_expr(e.operand)
-                return UnaryOp(UnaryOpKind.NOT, arg)
+                return UnaryOp(UnaryOpKind.NOT, arg, loc)
             case _:
                 raise FPyParserError(loc, 'Not a valid FPy operator', e.op, e)
 
@@ -214,7 +215,7 @@ class Parser:
                 exp = self._parse_expr(e.right)
                 if not isinstance(exp, Integer) or exp.val < 0:
                     raise FPyParserError(loc, 'FPy only supports `**` for small integer exponent, use `pow()` instead', e.op, e)
-                return _ipow(base, exp.val)
+                return _ipow(base, exp.val, loc)
             case _:
                 raise FPyParserError(loc, 'Not a valid FPy operator', e.op, e)
 
@@ -237,9 +238,10 @@ class Parser:
                 raise FPyParserError(loc, 'Not a valid FPy comparator', op, e)
 
     def _parse_compare(self, e: ast.Compare):
+        loc = self._parse_location(e)
         ops = [self._parse_cmpop(op, e) for op in e.ops]
         args = [self._parse_expr(e) for e in [e.left, *e.comparators]]
-        return Compare(ops, args)
+        return Compare(ops, args, loc)
 
     def _parse_call(self, e: ast.Call) -> str:
         """Parse a Python call expression."""
@@ -276,20 +278,21 @@ class Parser:
                 if name in _unary_table:
                     if len(e.args) != 1:
                         raise FPyParserError(loc, 'FPy unary operator expects one argument', e)
-                    return UnaryOp(_unary_table[name], self._parse_expr(e.args[0]))
+                    arg = self._parse_expr(e.args[0])
+                    return UnaryOp(_unary_table[name], arg, loc)
                 elif name in _binary_table:
                     if len(e.args) != 2:
                         raise FPyParserError(loc, 'FPy binary operator expects two arguments', e)
                     lhs = self._parse_expr(e.args[0])
                     rhs = self._parse_expr(e.args[1])
-                    return BinaryOp(_binary_table[name], lhs, rhs)
+                    return BinaryOp(_binary_table[name], lhs, rhs, loc)
                 elif name in _ternary_table:
                     if len(e.args) != 3:
                         raise FPyParserError(loc, 'FPy ternary operator expects three arguments', e)
                     arg0 = self._parse_expr(e.args[0])
                     arg1 = self._parse_expr(e.args[1])
                     arg2 = self._parse_expr(e.args[2])
-                    return TernaryOp(_ternary_table[name], arg0, arg1, arg2)
+                    return TernaryOp(_ternary_table[name], arg0, arg1, arg2, loc)
                 elif name == 'or':
                     args = [self._parse_expr(arg) for arg in e.args]
                     return NaryOp(NaryOpKind.OR, args, loc)
@@ -332,16 +335,16 @@ class Parser:
                 name = stmt.target.id
                 ty = self._parse_type_annotation(stmt.annotation)
                 value = self._parse_expr(stmt.value)
-                return VarAssign(name, value, ty)
+                return VarAssign(name, value, ty, loc)
             case ast.Assign():
                 if len(stmt.targets) != 1:
                     raise FPyParserError(loc, 'FPy only supports single assignment', stmt)
                 binding = self._parse_target(stmt.targets[0], stmt)
                 value = self._parse_expr(stmt.value)
                 if isinstance(binding, TupleBinding):
-                    return TupleAssign(binding, value)
+                    return TupleAssign(binding, value, loc)
                 elif isinstance(binding, str):
-                    return VarAssign(binding, value)
+                    return VarAssign(binding, value, None, loc)
                 else:
                     raise FPyParserError(loc, 'Unexpected binding type', stmt)
             case ast.If():
@@ -351,7 +354,7 @@ class Parser:
                     return IfStmt(cond, ift, None, loc)
                 else:
                     iff = self._parse_statements(stmt.orelse)
-                    return IfStmt(cond, ift, self._parse_statements(stmt.orelse), loc)
+                    return IfStmt(cond, ift, iff, loc)
             case ast.While():
                 cond = self._parse_expr(stmt.test)
                 block = self._parse_statements(stmt.body)
@@ -359,13 +362,14 @@ class Parser:
             case ast.Return():
                 if stmt.value is None:
                     raise FPyParserError(loc, 'Return statement must have value', stmt)
-                return Return(self._parse_expr(stmt.value))
+                e = self._parse_expr(stmt.value)
+                return Return(e, loc)
             case _:
                 raise NotImplementedError('statement is unsupported in FPy', stmt)
 
-    def _parse_statements(self, stmts: list[ast.stmt]) -> list[Stmt]:
+    def _parse_statements(self, stmts: list[ast.stmt]):
         """Parse a list of Python statements."""
-        return [self._parse_statement(s) for s in stmts]
+        return Block([self._parse_statement(s) for s in stmts])
 
     def _parse_function(self, f: ast.FunctionDef) -> Function:
         """Parse a Python function definition."""
@@ -382,7 +386,7 @@ class Parser:
                 raise FPyParserError(loc, 'FPy requires a type annotation', arg, f)
             name = '_' if arg.arg is None else arg.arg
             ty = self._parse_type_annotation(arg.annotation)
-            args.append(Argument(name, ty))
+            args.append(Argument(name, ty, loc))
 
         block = self._parse_statements(f.body)
         return Function(f.name, args, block, loc)
