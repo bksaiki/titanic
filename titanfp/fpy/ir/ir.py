@@ -336,6 +336,12 @@ class And(NaryExpr):
     """FPy node: logical conjunction"""
     name: str = 'and'
 
+# Tensor operators
+
+class Range(UnaryExpr):
+    """FPy node: range constructor"""
+    name: str = 'range'
+
 # Comparisons
 
 class Compare(Expr):
@@ -444,12 +450,14 @@ class ForStmt(Stmt):
     ty: IRType
     iter: Expr
     body: Block
+    phis: PhiNodes
 
-    def __init__(self, var: str, ty: IRType, iter: Expr, body: Block):
+    def __init__(self, var: str, ty: IRType, iter: Expr, body: Block, phis: PhiNodes):
         self.var = var
         self.ty = ty
         self.iter = iter
         self.body = body
+        self.phis = phis
 
 class Return(Stmt):
     """FPy IR: return statement"""

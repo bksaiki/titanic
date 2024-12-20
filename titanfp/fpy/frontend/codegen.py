@@ -42,6 +42,117 @@ class _IRCodegenInstance(AstVisitor):
             case UnaryOpKind.NOT:
                 arg = self._visit(e.arg, ctx)
                 return ir.Not(arg)
+            case UnaryOpKind.FABS:
+                arg = self._visit(e.arg, ctx)
+                return ir.Fabs(arg)
+            case UnaryOpKind.SQRT:
+                arg = self._visit(e.arg, ctx)
+                return ir.Sqrt(arg)
+            case UnaryOpKind.CBRT:
+                arg = self._visit(e.arg, ctx)
+                return ir.Cbrt(arg)
+            case UnaryOpKind.CEIL:
+                arg = self._visit(e.arg, ctx)
+                return ir.Ceil(arg)
+            case UnaryOpKind.FLOOR:
+                arg = self._visit(e.arg, ctx)
+                return ir.Floor(arg)
+            case UnaryOpKind.NEARBYINT:
+                arg = self._visit(e.arg, ctx)
+                return ir.Nearbyint(arg)
+            case UnaryOpKind.ROUND:
+                arg = self._visit(e.arg, ctx)
+                return ir.Round(arg)
+            case UnaryOpKind.TRUNC:
+                arg = self._visit(e.arg, ctx)
+                return ir.Trunc(arg)
+            case UnaryOpKind.ACOS:
+                arg = self._visit(e.arg, ctx)
+                return ir.Acos(arg)
+            case UnaryOpKind.ASIN:
+                arg = self._visit(e.arg, ctx)
+                return ir.Asin(arg)
+            case UnaryOpKind.ATAN:
+                arg = self._visit(e.arg, ctx)
+                return ir.Atan(arg)
+            case UnaryOpKind.COS:
+                arg = self._visit(e.arg, ctx)
+                return ir.Cos(arg)
+            case UnaryOpKind.SIN:
+                arg = self._visit(e.arg, ctx)
+                return ir.Sin(arg)
+            case UnaryOpKind.TAN:
+                arg = self._visit(e.arg, ctx)
+                return ir.Tan(arg)
+            case UnaryOpKind.ACOSH:
+                arg = self._visit(e.arg, ctx)
+                return ir.Acosh(arg)
+            case UnaryOpKind.ASINH:
+                arg = self._visit(e.arg, ctx)
+                return ir.Asinh(arg)
+            case UnaryOpKind.ATANH:
+                arg = self._visit(e.arg, ctx)
+                return ir.Atanh(arg)
+            case UnaryOpKind.COSH:
+                arg = self._visit(e.arg, ctx)
+                return ir.Cosh(arg)
+            case UnaryOpKind.SINH:
+                arg = self._visit(e.arg, ctx)
+                return ir.Sinh(arg)
+            case UnaryOpKind.TANH:
+                arg = self._visit(e.arg, ctx)
+                return ir.Tanh(arg)
+            case UnaryOpKind.EXP:
+                arg = self._visit(e.arg, ctx)
+                return ir.Exp(arg)
+            case UnaryOpKind.EXP2:
+                arg = self._visit(e.arg, ctx)
+                return ir.Exp2(arg)
+            case UnaryOpKind.EXPM1:
+                arg = self._visit(e.arg, ctx)
+                return ir.Expm1(arg)
+            case UnaryOpKind.LOG:
+                arg = self._visit(e.arg, ctx)
+                return ir.Log(arg)
+            case UnaryOpKind.LOG10:
+                arg = self._visit(e.arg, ctx)
+                return ir.Log10(arg)
+            case UnaryOpKind.LOG1P:
+                arg = self._visit(e.arg, ctx)
+                return ir.Log1p(arg)
+            case UnaryOpKind.LOG2:
+                arg = self._visit(e.arg, ctx)
+                return ir.Log2(arg)
+            case UnaryOpKind.ERF:
+                arg = self._visit(e.arg, ctx)
+                return ir.Erf(arg)
+            case UnaryOpKind.ERFC:
+                arg = self._visit(e.arg, ctx)
+                return ir.Erfc(arg)
+            case UnaryOpKind.LGAMMA:
+                arg = self._visit(e.arg, ctx)
+                return ir.Lgamma(arg)
+            case UnaryOpKind.TGAMMA:
+                arg = self._visit(e.arg, ctx)
+                return ir.Tgamma(arg)
+            case UnaryOpKind.ISFINITE:
+                arg = self._visit(e.arg, ctx)
+                return ir.IsFinite(arg)
+            case UnaryOpKind.ISINF:
+                arg = self._visit(e.arg, ctx)
+                return ir.IsInf(arg)
+            case UnaryOpKind.ISNAN:
+                arg = self._visit(e.arg, ctx)
+                return ir.IsNan(arg)
+            case UnaryOpKind.ISNORMAL:
+                arg = self._visit(e.arg, ctx)
+                return ir.IsNormal(arg)
+            case UnaryOpKind.SIGNBIT:
+                arg = self._visit(e.arg, ctx)
+                return ir.Signbit(arg)
+            case UnaryOpKind.RANGE:
+                arg = self._visit(e.arg, ctx)
+                return ir.Range(arg)
             case _:
                 raise NotImplementedError('unexpected op', e.op)
 
@@ -57,6 +168,24 @@ class _IRCodegenInstance(AstVisitor):
                 return ir.Mul(lhs, rhs)
             case BinaryOpKind.DIV:
                 return ir.Div(lhs, rhs)
+            case BinaryOpKind.COPYSIGN:
+                return ir.Copysign(lhs, rhs)
+            case BinaryOpKind.FDIM:
+                return ir.Fdim(lhs, rhs)
+            case BinaryOpKind.FMAX:
+                return ir.Fmax(lhs, rhs)
+            case BinaryOpKind.FMIN:
+                return ir.Fmin(lhs, rhs)
+            case BinaryOpKind.FMOD:
+                return ir.Fmod(lhs, rhs)
+            case BinaryOpKind.REMAINDER:
+                return ir.Remainder(lhs, rhs)
+            case BinaryOpKind.HYPOT:
+                return ir.Hypot(lhs, rhs)
+            case BinaryOpKind.ATAN2:
+                return ir.Atan2(lhs, rhs)
+            case BinaryOpKind.POW:
+                return ir.Pow(lhs, rhs)
             case _:
                 raise NotImplementedError('unexpected op', e.op)
 
@@ -187,17 +316,16 @@ class _IRCodegenInstance(AstVisitor):
             return self._visit_if2_stmt(stmt, ctx)
 
     def _visit_while_stmt(self, stmt, ctx: _CtxType):
-        # merge variables initialized before the block that are updated
-        # in the body of the loop
+        # merge variables initialized before the block that
+        # are updated in the body of the loop
         live_in, live_out = stmt.attribs[LiveVarAnalysis.analysis_name]
         live_cond = stmt.cond.attribs[LiveVarAnalysis.analysis_name]
         live_body, _ = stmt.body.attribs[LiveVarAnalysis.analysis_name]
         _, def_out = stmt.body.attribs[DefinitionAnalysis.analysis_name]
-    
-        changed_vars: set[str] = live_in & def_out
         live_loop: set[str] = live_cond | live_body
         # generate fresh variables for all changed variables
         changed_map: dict[str, str] = dict()
+        changed_vars: set[str] = live_in & def_out
         for name in changed_vars:
             t = self.gensym.fresh(name)
             changed_map[name] = t
@@ -208,7 +336,6 @@ class _IRCodegenInstance(AstVisitor):
                 loop_ctx[name] = changed_map[name]
             else:
                 loop_ctx[name] = ctx[name]
-        print(live_in, live_loop, live_out, ctx, loop_ctx)
         # compile the condition and body using the loop context
         cond = self._visit(stmt.cond, loop_ctx)
         body, body_ctx = self._visit_block(stmt.body, loop_ctx)
@@ -230,18 +357,45 @@ class _IRCodegenInstance(AstVisitor):
         return [s], new_ctx
 
     def _visit_for_stmt(self, stmt, ctx: _CtxType):
-        # merge variables initialized before the block that are updated
-        # in the body of the loop
-        # merge variables initialized before the block that are updated
-        # in the body of the loop
+        cond = self._visit(stmt.iterable, ctx)
+        iter_var = self.gensym.fresh(stmt.var)
+        ctx = { **ctx, stmt.var: iter_var }
+        # merge variables initialized before the block that
+        # are updated in the body of the loop
         live_in, live_out = stmt.attribs[LiveVarAnalysis.analysis_name]
-        live_iter = stmt.iterable.attribs[LiveVarAnalysis.analysis_name]
-        live_body, _ = stmt.body.attribs[LiveVarAnalysis.analysis_name]
+        live_loop, _ = stmt.body.attribs[LiveVarAnalysis.analysis_name]
         _, def_out = stmt.body.attribs[DefinitionAnalysis.analysis_name]
-
+        # generate fresh variables for all changed variables
+        changed_map: dict[str, str] = dict()
         changed_vars: set[str] = live_in & def_out
-        live_loop: set[str] = live_iter | live_body
-        raise NotImplementedError(changed_vars, live_in, live_body, live_out, ctx)
+        for name in changed_vars:
+            t = self.gensym.fresh(name)
+            changed_map[name] = t
+        # create the new context for the loop
+        loop_ctx: _CtxType = dict()
+        for name in live_loop:
+            if name in changed_map:
+                loop_ctx[name] = changed_map[name]
+            else:
+                loop_ctx[name] = ctx[name]
+        # compile the loop body using the loop context
+        body, body_ctx = self._visit_block(stmt.body, loop_ctx)
+        # merge all changed variables using phi nodes
+        phis: ir.PhiNodes = dict()
+        for name, t in changed_map.items():
+            old_name = ctx[name]
+            new_name = body_ctx[name]
+            assert old_name != new_name, 'must be different by definition analysis'
+            phis[t] = (old_name, new_name)
+        # create new statement and context
+        s = ir.ForStmt(iter_var, ir.AnyType(), cond, body, phis)
+        new_ctx: _CtxType = dict()
+        for name in live_out:
+            if name in changed_map:
+                new_ctx[name] = changed_map[name]
+            else:
+                new_ctx[name] = ctx[name]
+        return [s], new_ctx
 
     def _visit_return(self, stmt, ctx: _CtxType):
         e = self._visit(stmt.expr, ctx)
