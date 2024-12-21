@@ -2,6 +2,7 @@
 
 from ..passes import DefineUse, SimplifyIf
 from ..ir import *
+from ..utils import Gensym
 
 from ...fpbench import fpcast as fpc
 
@@ -62,12 +63,19 @@ _op_table = {
     'and': fpc.And,
 }
 
+class FPCoreCompileError(Exception):
+    """Any FPCore compilation error"""
+    pass
+
 class FPCoreCompileInstance(ReduceVisitor):
     """Compilation instance from FPy to FPCore"""
     func: Function
+    gensym: Gensym
 
     def __init__(self, func: Function):
+        uses = DefineUse().analyze(func)
         self.func = func
+        self.gensym = Gensym(*uses.keys())
 
     def compile(self) -> fpc.FPCore:
         f = self._visit(self.func, None)
@@ -81,7 +89,7 @@ class FPCoreCompileInstance(ReduceVisitor):
             case AnyType():
                 return arg.name, None, None
             case _:
-                raise NotImplementedError('unsupported argument type', arg)
+                raise FPCoreCompileError('unsupported argument type', arg)
 
     def _compile_tuple_binding(self, tuple_id: str, binding: TupleBinding, pos: list[int]):
         tuple_binds: list[tuple[str, fpc.Expr]] = []
@@ -93,7 +101,7 @@ class FPCoreCompileInstance(ReduceVisitor):
                 case TupleBinding():
                     tuple_binds += self._compile_tuple_binding(tuple_id, elt, [i, *pos])
                 case _:
-                    raise NotImplementedError('unexpected tensor element', elt)
+                    raise FPCoreCompileError('unexpected tensor element', elt)
         return tuple_binds
 
     def _compile_compareop(self, op: CompareOp):
@@ -111,7 +119,7 @@ class FPCoreCompileInstance(ReduceVisitor):
             case CompareOp.NE:
                 return fpc.NEQ
             case _:
-                raise NotImplementedError(op)
+                raise NotImplementedError('unreachable', op)
 
     def _visit_var(self, e, ctx) -> fpc.Expr:
         return fpc.Var(e.name)
@@ -194,16 +202,16 @@ class FPCoreCompileInstance(ReduceVisitor):
         return (fpc.Let, [tuple_bind] + destruct_bindings)
     
     def _visit_if1_stmt(self, stmt, ctx):
-        raise NotImplementedError('cannot compile to FPCore')
+        raise FPCoreCompileError(f'cannot compile to FPCore: {type(stmt).__name__}')
 
-    def _visit_if_stmt(self, stmt: IfStmt, ctx) -> fpc.Expr:
-        raise NotImplementedError('cannot compile to FPCore')
+    def _visit_if_stmt(self, stmt, ctx) -> fpc.Expr:
+        raise FPCoreCompileError(f'cannot compile to FPCore: {type(stmt).__name__}')
 
     def _visit_while_stmt(self, stmt, ctx) -> fpc.Expr:
-        raise NotImplementedError('cannot compile to FPCore')
+        raise FPCoreCompileError(f'cannot compile to FPCore: {type(stmt).__name__}')
 
     def _visit_for_stmt(self, stmt, ctx) -> fpc.Expr:
-        raise NotImplementedError('cannot compile to FPCore')
+        raise FPCoreCompileError(f'cannot compile to FPCore: {type(stmt).__name__}')
 
     def _visit_return(self, stmt, ctx) -> fpc.Expr:
         return self._visit(stmt.expr, ctx)
@@ -218,6 +226,18 @@ class FPCoreCompileInstance(ReduceVisitor):
                 case TupleAssign():
                     cls, bindings = self._visit_tuple_assign(stmts[0], ctx)
                     return cls(bindings, _build(stmts[1:]))
+                case If1Stmt():
+                    self._visit(stmts[0], ctx)
+                    raise NotImplementedError('unreachable')
+                case IfStmt():
+                    self._visit(stmts[0], ctx)
+                    raise NotImplementedError('unreachable')
+                case WhileStmt():
+                    self._visit(stmts[0], ctx)
+                    raise NotImplementedError('unreachable')
+                case ForStmt():
+                    self._visit(stmts[0], ctx)
+                    raise NotImplementedError('unreachable')
                 case Return():
                     assert len(stmts) == 1, 'return statements must be at the end of blocks'
                     return self._visit_return(stmts[0], ctx)
@@ -242,10 +262,9 @@ class FPCoreCompileInstance(ReduceVisitor):
     def _visit(self, e, ctx) -> fpc.Expr:
         return super()._visit(e, ctx)
 
-
 class FPCoreCompiler:
     """Compiler from FPy IR to FPCore"""
 
     def compile(self, func: Function) -> fpc.FPCore:
-        # func = SimplifyIf.apply(func)
+        func = SimplifyIf.apply(func)
         return FPCoreCompileInstance(func).compile()

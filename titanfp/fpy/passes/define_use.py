@@ -87,4 +87,4 @@ class DefineUse:
 
     @staticmethod
     def analyze(func: Function):
-        _DefineUseInstance(func).analyze()
+        return _DefineUseInstance(func).analyze()

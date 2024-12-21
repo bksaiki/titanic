@@ -372,8 +372,8 @@ class _IRCodegenInstance(AstVisitor):
         live_loop, _ = stmt.body.attribs[LiveVarAnalysis.analysis_name]
         _, def_out = stmt.body.attribs[DefinitionAnalysis.analysis_name]
         # generate fresh variables for all changed variables
-        changed_map: dict[str, str] = dict()
         changed_vars: set[str] = live_in & def_out
+        changed_map: dict[str, str] = dict()
         for name in changed_vars:
             t = self.gensym.fresh(name)
             changed_map[name] = t

@@ -40,7 +40,6 @@ def fpcore(*args, **kwargs):
         LiveVarAnalysis().analyze(ast)
         ir = IRCodegen.lower(ast)
         VerifyIR.check(ir)
-        DefineUse.analyze(ir)
         return ir
 
     # handle any arguments to the decorator

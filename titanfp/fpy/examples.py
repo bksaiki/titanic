@@ -309,9 +309,9 @@ cores: list[Function] = [
     test_if3,
     test_if4,
     test_while1,
-    test_while2,
-    test_for1,
-    test_for2,
+    # test_while2,
+    # test_for1,
+    # test_for2,
     # Examples
     nmse3_1,
     instCurrent,
@@ -320,6 +320,6 @@ cores: list[Function] = [
 ]
 
 comp = FPCoreCompiler()
-# for core in cores:
-#     fpc = comp.compile(core)
-#     print(fpc.sexp)
+for core in cores:
+    fpc = comp.compile(core)
+    print(fpc.sexp)
