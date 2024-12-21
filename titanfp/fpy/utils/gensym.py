@@ -19,6 +19,9 @@ class Gensym(object):
 
     def reserve(self, *names: str):
         """Reserves a list of names."""
+        for name in names:
+            if not isinstance(name, str):
+                raise TypeError('must be a list of strings', names)
         self._names.update(names)
 
     def fresh(self, prefix: str = 't'):

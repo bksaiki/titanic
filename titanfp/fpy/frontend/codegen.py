@@ -412,7 +412,8 @@ class _IRCodegenInstance(AstVisitor):
         ctx = dict(ctx)
         args: list[ir.Argument] = []
         for arg in func.args:
-            ctx[arg.name] = self.gensym.reserve(arg)
+            self.gensym.reserve(arg.name)
+            ctx[arg.name] = arg.name
             args.append(ir.Argument(arg.name, ir.AnyType()))
         e, _ = self._visit(func.body, ctx)
         return ir.Function(func.name, args, e, ir.AnyType()) 

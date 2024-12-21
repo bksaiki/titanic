@@ -5,10 +5,12 @@ Decorators for the FPy language.
 import inspect
 
 from .codegen import IRCodegen
+from .definition import DefinitionAnalysis
 from .fpyast import Function
 from .live_vars import LiveVarAnalysis
-from .definition import DefinitionAnalysis
 from .parser import Parser
+
+from ..passes import VerifyPass
 
 def fpcore(*args, **kwargs):
     """
@@ -36,7 +38,10 @@ def fpcore(*args, **kwargs):
         # analyze and lower to the IR
         DefinitionAnalysis().analyze(ast)
         LiveVarAnalysis().analyze(ast)
-        return IRCodegen().lower(ast)
+        ir = IRCodegen().lower(ast)
+        VerifyPass().check(ir)
+        # print(ir)
+        return ir
 
 
     # handle any arguments to the decorator

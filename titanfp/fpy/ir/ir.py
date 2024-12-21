@@ -397,6 +397,17 @@ class TupleBinding(IR):
 
     def __iter__(self):
         return iter(self.elts)
+    
+    def names(self) -> set[str]:
+        ids: set[str] = set()
+        for v in self.elts:
+            if isinstance(v, TupleBinding):
+                ids |= v.names()
+            elif isinstance(v, str):
+                ids.add(v)
+            else:
+                raise NotImplementedError('unexpected tuple identifier', v)
+        return ids
 
 class TupleAssign(Stmt):
     """FPy node: assignment to a tuple"""
@@ -451,14 +462,14 @@ class ForStmt(Stmt):
     """FPy IR: for statement"""
     var: str
     ty: IRType
-    iter: Expr
+    iterable: Expr
     body: Block
     phis: PhiNodes
 
-    def __init__(self, var: str, ty: IRType, iter: Expr, body: Block, phis: PhiNodes):
+    def __init__(self, var: str, ty: IRType, iterable: Expr, body: Block, phis: PhiNodes):
         self.var = var
         self.ty = ty
-        self.iter = iter
+        self.iterable = iterable
         self.body = body
         self.phis = phis
 

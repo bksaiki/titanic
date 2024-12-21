@@ -184,6 +184,75 @@ class TransformVisitor(BaseVisitor):
 
 # Default visitor implementations
 
+class DefaultVisitor(Visitor):
+    """Default visitor: visits all nodes without doing anything."""
+    def _visit_var(self, e: Var, ctx: Any):
+        pass
+
+    def _visit_decnum(self, e: Decnum, ctx: Any):
+        pass
+
+    def _visit_integer(self, e: Integer, ctx: Any):
+        pass
+
+    def _visit_digits(self, e: Digits, ctx: Any):
+        pass
+
+    def _visit_unknown(self, e: UnknownCall, ctx: Any):
+        for c in e.children:
+            self._visit(c, ctx)
+
+    def _visit_nary_expr(self, e: NaryExpr, ctx: Any):
+        for c in e.children:
+            self._visit(c, ctx)
+
+    def _visit_compare(self, e: Compare, ctx: Any):
+        for c in e.children:
+            self._visit(c, ctx)
+
+    def _visit_tuple_expr(self, e: TupleExpr, ctx: Any):
+        for c in e.children:
+            self._visit(c, ctx)
+
+    def _visit_if_expr(self, e: IfExpr, ctx: Any):
+        self._visit(e.cond, ctx)
+        self._visit(e.ift, ctx)
+        self._visit(e.iff, ctx)
+
+    def _visit_var_assign(self, stmt: VarAssign, ctx: Any):
+        self._visit(stmt.expr, ctx)
+
+    def _visit_tuple_assign(self, stmt: TupleAssign, ctx: Any):
+        self._visit(stmt.expr, ctx)
+
+    def _visit_if1_stmt(self, stmt: If1Stmt, ctx: Any):
+        self._visit(stmt.cond, ctx)
+        self._visit(stmt.body, ctx)
+
+    def _visit_if_stmt(self, stmt: IfStmt, ctx: Any):
+        self._visit(stmt.cond, ctx)
+        self._visit(stmt.ift, ctx)
+        self._visit(stmt.iff, ctx)
+
+    def _visit_while_stmt(self, stmt: WhileStmt, ctx: Any):
+        self._visit(stmt.cond, ctx)
+        self._visit(stmt.body, ctx)
+
+    def _visit_for_stmt(self, stmt: ForStmt, ctx: Any):
+        self._visit(stmt.iterable, ctx)
+        self._visit(stmt.body, ctx)
+
+    def _visit_return(self, stmt: Return, ctx: Any):
+        return self._visit(stmt.expr, ctx)
+
+    def _visit_block(self, block: Block, ctx: Any):
+        for stmt in block.stmts:
+            self._visit(stmt, ctx)
+
+    def _visit_function(self, func: Function, ctx: Any):
+        self._visit(func.body, ctx)
+
+
 class DefaultTransformVisitor(TransformVisitor):
     """Default transform visitor: identity operation on an FPy program."""
 
