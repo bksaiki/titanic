@@ -329,6 +329,22 @@ class Parser:
         """Parse a Python statement."""
         loc = self._parse_location(stmt)
         match stmt:
+            case ast.AugAssign():
+                if not isinstance(stmt.target, ast.Name):
+                    raise FPyParserError(loc, 'Unsupported target in FPy', stmt)
+                name = stmt.target.id
+                value = self._parse_expr(stmt.value)
+                match stmt.op:
+                    case ast.Add():
+                        return VarAssign(name, BinaryOp(BinaryOpKind.ADD, Var(name, loc), value, loc), None, loc)
+                    case ast.Sub():
+                        return VarAssign(name, BinaryOp(BinaryOpKind.SUB, Var(name, loc), value, loc), None, loc)
+                    case ast.Mult():
+                        return VarAssign(name, BinaryOp(BinaryOpKind.MUL, Var(name, loc), value, loc), None, loc)
+                    case ast.Div():
+                        return VarAssign(name, BinaryOp(BinaryOpKind.DIV, Var(name, loc), value, loc), None, loc)
+                    case _:
+                        raise FPyParserError(loc, 'Unsupported operator-assignment in FPy', stmt)
             case ast.AnnAssign():
                 if not isinstance(stmt.target, ast.Name):
                     raise FPyParserError(loc, 'Unsupported target in FPy', stmt)

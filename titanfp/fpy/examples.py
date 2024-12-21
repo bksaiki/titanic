@@ -178,10 +178,19 @@ def test_while2():
     return x + t
 
 @fpcore
+def test_while3():
+    x = 0
+    y = 0
+    while x < 5:
+        x += 1
+        y += x
+    return x, y
+
+@fpcore
 def test_for1():
     j = 0
     for i in range(5):
-        j = j + i
+        j += i
     return j
 
 @fpcore
@@ -189,7 +198,7 @@ def test_for2():
     accum = 0
     for i in range(5):
         for j in range(5):
-            accum = accum + i * j
+            accum += i * j
     return accum
 
 ### Examples
@@ -310,6 +319,7 @@ cores: list[Function] = [
     test_if4,
     test_while1,
     test_while2,
+    test_while3,
     test_for1,
     test_for2,
     # Examples
