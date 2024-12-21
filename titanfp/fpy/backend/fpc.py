@@ -1,5 +1,7 @@
 """Compilation from FPy IR to FPCore"""
 
+from typing import Optional
+
 from ..passes import DefineUse, SimplifyIf
 from ..ir import *
 from ..utils import Gensym
@@ -191,59 +193,59 @@ class FPCoreCompileInstance(ReduceVisitor):
             self._visit(e.iff, ctx)
         )
 
-    def _visit_var_assign(self, stmt: VarAssign, ctx):
-        bindings = [(stmt.var, self._visit(stmt.expr, ctx))]
-        return (fpc.Let, bindings)
+    def _visit_var_assign(self, stmt: VarAssign, ctx: fpc.Expr):
+        bindings = [(stmt.var, self._visit(stmt.expr, None))]
+        return fpc.Let(bindings, ctx)
 
-    def _visit_tuple_assign(self, stmt: TupleAssign, ctx):
-        tuple_id = 't0' # TODO: needs to be a unique identifier
-        tuple_bind = (tuple_id, self._visit(stmt.expr, ctx))
+    def _visit_tuple_assign(self, stmt: TupleAssign, ctx: fpc.Expr):
+        tuple_id = self.gensym.fresh('t')
+        tuple_bind = (tuple_id, self._visit(stmt.expr, None))
         destruct_bindings = self._compile_tuple_binding(tuple_id, stmt.vars, [])
-        return (fpc.Let, [tuple_bind] + destruct_bindings)
+        return fpc.Let([tuple_bind] + destruct_bindings, ctx)
     
     def _visit_if1_stmt(self, stmt, ctx):
         raise FPCoreCompileError(f'cannot compile to FPCore: {type(stmt).__name__}')
 
-    def _visit_if_stmt(self, stmt, ctx) -> fpc.Expr:
+    def _visit_if_stmt(self, stmt, ctx):
         raise FPCoreCompileError(f'cannot compile to FPCore: {type(stmt).__name__}')
 
-    def _visit_while_stmt(self, stmt, ctx) -> fpc.Expr:
-        raise FPCoreCompileError(f'cannot compile to FPCore: {type(stmt).__name__}')
+    def _visit_while_stmt(self, stmt, ctx: fpc.Expr):
+        if len(stmt.phis) != 1:
+            raise FPCoreCompileError('while loops must have exactly one phi node')
+        phi = stmt.phis[0]
+        name, init, update = phi.name, phi.lhs, phi.rhs
+        cond = self._visit(stmt.cond, None)
+        body = self._visit(stmt.body, fpc.Var(update))
+        return fpc.While(cond, [(name, fpc.Var(init), body)], ctx)
 
-    def _visit_for_stmt(self, stmt, ctx) -> fpc.Expr:
+    def _visit_for_stmt(self, stmt, ctx):
         raise FPCoreCompileError(f'cannot compile to FPCore: {type(stmt).__name__}')
 
     def _visit_return(self, stmt, ctx) -> fpc.Expr:
         return self._visit(stmt.expr, ctx)
 
-    def _visit_block(self, block, ctx):
-        def _build(stmts: list[Stmt]) -> fpc.Expr:
-            assert stmts != [], 'block is unexpectedly empty'
-            match stmts[0]:
-                case VarAssign():
-                    cls, bindings = self._visit_var_assign(stmts[0], ctx)
-                    return cls(bindings, _build(stmts[1:]))
-                case TupleAssign():
-                    cls, bindings = self._visit_tuple_assign(stmts[0], ctx)
-                    return cls(bindings, _build(stmts[1:]))
-                case If1Stmt():
-                    self._visit(stmts[0], ctx)
-                    raise NotImplementedError('unreachable')
-                case IfStmt():
-                    self._visit(stmts[0], ctx)
-                    raise NotImplementedError('unreachable')
-                case WhileStmt():
-                    self._visit(stmts[0], ctx)
-                    raise NotImplementedError('unreachable')
-                case ForStmt():
-                    self._visit(stmts[0], ctx)
-                    raise NotImplementedError('unreachable')
+    def _visit_block(self, block, ctx: Optional[fpc.Expr]):
+        if ctx is None:
+            # entering from the top-level
+            ret_stmt = block.stmts[-1]
+            if not isinstance(ret_stmt, Return):
+                raise FPCoreCompileError('blocks must have a return statement at the end')
+            e = self._visit(ret_stmt, ctx)
+            stmts = block.stmts[:-1]
+        else:
+            # entering from a nested block
+            e = ctx
+            stmts = block.stmts
+
+        for stmt in reversed(stmts):
+            match stmt:
+                case VarAssign() | TupleAssign() | WhileStmt():
+                    e = self._visit(stmt, e)
                 case Return():
-                    assert len(stmts) == 1, 'return statements must be at the end of blocks'
-                    return self._visit_return(stmts[0], ctx)
+                    raise FPCoreCompileError('return statements must be at the end of blocks')
                 case _:
-                    raise NotImplementedError('unreachable', stmts[0])
-        return _build(block.stmts)
+                    raise FPCoreCompileError(f'cannot compile to FPCore: {type(stmt).__name__}')
+        return e
 
     def _visit_function(self, func, ctx):
         args = [self._compile_arg(arg) for arg in func.args]
