@@ -256,11 +256,11 @@ class _IRCodegenInstance(AstVisitor):
         # compile the expression
         e = self._visit(stmt.expr, ctx)
         # generate fresh variables for the tuple assignment
-        for name in stmt.vars.names():
+        for name in stmt.binding.names():
             t = self.gensym.fresh(name)
             ctx = { **ctx, name: t }
-        vars = self._compile_tuple_binding(stmt.vars, ctx)
-        tys = ir.TensorType([ir.AnyType() for _ in stmt.vars])
+        vars = self._compile_tuple_binding(stmt.binding, ctx)
+        tys = ir.TensorType([ir.AnyType() for _ in stmt.binding])
         s = ir.TupleAssign(vars, tys, e)
         return s, ctx
 

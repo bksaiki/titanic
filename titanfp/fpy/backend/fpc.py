@@ -206,7 +206,7 @@ class FPCoreCompileInstance(ReduceVisitor):
     def _visit_tuple_assign(self, stmt: TupleAssign, ctx: fpc.Expr):
         tuple_id = self.gensym.fresh('t')
         tuple_bind = (tuple_id, self._visit(stmt.expr, None))
-        destruct_bindings = self._compile_tuple_binding(tuple_id, stmt.vars, [])
+        destruct_bindings = self._compile_tuple_binding(tuple_id, stmt.binding, [])
         return fpc.Let([tuple_bind] + destruct_bindings, ctx)
     
     def _visit_if1_stmt(self, stmt, ctx):

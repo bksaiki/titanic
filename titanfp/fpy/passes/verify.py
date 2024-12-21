@@ -35,7 +35,7 @@ class _VerifyPassInstance(DefaultVisitor):
 
     def _visit_tuple_assign(self, stmt, ctx: _CtxType):
         self._visit(stmt.expr, ctx)
-        for var in stmt.vars.names():
+        for var in stmt.binding.names():
             if var in self.types:
                 raise InvalidIRError(f'reassignment of variable {var}')
             self.types[var] = AnyType()

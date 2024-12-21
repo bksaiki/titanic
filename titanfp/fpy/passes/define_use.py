@@ -31,7 +31,7 @@ class _DefineUseInstance(DefaultVisitor):
 
     def _visit_tuple_assign(self, stmt: TupleAssign, ctx):
         self._visit(stmt.expr, ctx)
-        for var in stmt.vars.names():
+        for var in stmt.binding.names():
             self.uses[var] = set()
 
     def _visit_if1_stmt(self, stmt, ctx):

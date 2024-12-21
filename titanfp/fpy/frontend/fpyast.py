@@ -326,7 +326,7 @@ class VarAssign(Stmt):
 
 class TupleBinding(Ast):
     """FPy AST: tuple binding"""
-    vars: list[str | Self]
+    elts: list[str | Self]
 
     def __init__(
         self,
@@ -334,11 +334,11 @@ class TupleBinding(Ast):
         loc: Location
     ):
         super().__init__(loc)
-        self.vars = vars
+        self.elts = vars
 
     def names(self) -> set[str]:
         ids: set[str] = set()
-        for v in self.vars:
+        for v in self.elts:
             if isinstance(v, TupleBinding):
                 ids |= v.names()
             elif isinstance(v, str):
@@ -348,11 +348,11 @@ class TupleBinding(Ast):
         return ids
     
     def __iter__(self):
-        return iter(self.vars)
+        return iter(self.elts)
 
 class TupleAssign(Stmt):
     """FPy AST: tuple assignment"""
-    vars: TupleBinding
+    binding: TupleBinding
     expr: Expr
 
     def __init__(
@@ -362,7 +362,7 @@ class TupleAssign(Stmt):
         loc: Location
     ):
         super().__init__(loc)
-        self.vars = vars
+        self.binding = vars
         self.expr = expr
 
 class IfStmt(Stmt):

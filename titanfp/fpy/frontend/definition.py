@@ -60,7 +60,7 @@ class DefinitionAnalysis(AstVisitor):
         return ctx | { stmt.var }
 
     def _visit_tuple_assign(self, stmt, ctx: _DefSet):
-        return ctx | stmt.vars.names()
+        return ctx | stmt.binding.names()
 
     def _visit_if_stmt(self, stmt, ctx: _DefSet):
         ift_defs = self._visit(stmt.ift, ctx)

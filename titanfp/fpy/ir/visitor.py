@@ -324,7 +324,7 @@ class DefaultTransformVisitor(TransformVisitor):
         return TupleBinding(new_vars)
 
     def _visit_tuple_assign(self, stmt, ctx: Any):
-        vars = self._copy_tuple_binding(stmt.vars)
+        vars = self._copy_tuple_binding(stmt.binding)
         val = self._visit(stmt.expr, ctx)
         return TupleAssign(vars, stmt.ty, val)
 

@@ -88,7 +88,7 @@ class LiveVarAnalysis(AstVisitor):
         return ctx | self._visit(stmt.expr, None)
 
     def _visit_tuple_assign(self, stmt, ctx: _LiveSet) -> _LiveSet:
-        ctx -= stmt.vars.names()
+        ctx -= stmt.binding.names()
         return ctx | self._visit(stmt.expr, None)
 
     def _visit_if_stmt(self, stmt, ctx: _LiveSet) -> _LiveSet:

@@ -431,13 +431,13 @@ class TupleBinding(IR):
 
 class TupleAssign(Stmt):
     """FPy node: assignment to a tuple"""
-    vars: TupleBinding
+    binding: TupleBinding
     ty: IRType
     expr: Expr
 
     def __init__(self, vars: TupleBinding, ty: IRType, expr: Expr):
         super().__init__()
-        self.vars = vars
+        self.binding = vars
         self.ty = ty
         self.expr = expr
 
