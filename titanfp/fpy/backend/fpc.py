@@ -140,10 +140,16 @@ class FPCoreCompileInstance(ReduceVisitor):
         return fpc.UnknownOperator(e.name, *args)
 
     def _visit_nary_expr(self, e, ctx) -> fpc.Expr:
-        cls = _op_table.get(e.name)
-        if cls is None:
-            raise NotImplementedError('no FPCore operator for', e.name)
-        return cls(*[self._visit(c, ctx) for c in e.children])
+        if e.name == Range.name:
+            # expand range expression
+            tuple_id = 'i'
+            size = self._visit(e.children[0], ctx)
+            return fpc.Tensor([(tuple_id, size)], fpc.Var(tuple_id))
+        else:
+            cls = _op_table.get(e.name)
+            if cls is None:
+                raise NotImplementedError('no FPCore operator for', e.name)
+            return cls(*[self._visit(c, ctx) for c in e.children])
 
     def _visit_compare(self, e, ctx) -> fpc.Expr:
         assert e.ops != [], 'should not be empty'
@@ -219,7 +225,19 @@ class FPCoreCompileInstance(ReduceVisitor):
         return fpc.While(cond, [(name, fpc.Var(init), body)], ctx)
 
     def _visit_for_stmt(self, stmt, ctx):
-        raise FPCoreCompileError(f'cannot compile to FPCore: {type(stmt).__name__}')
+        if len(stmt.phis) != 1:
+            raise FPCoreCompileError('for loops must have exactly one phi node')
+        # phi nodes
+        phi = stmt.phis[0]
+        name, init, update = phi.name, phi.lhs, phi.rhs
+        # fresh variable for the iterable value
+        tuple_id = self.gensym.fresh('t')
+        iterable = self._visit(stmt.iterable, None)
+        body = self._visit(stmt.body, fpc.Var(update))
+        # index variables and state merging
+        dim_binding = (stmt.var, fpc.Size(tuple_id))
+        while_binding = (name, fpc.Var(init), body)
+        return fpc.Let([(tuple_id, iterable)], fpc.For([dim_binding], [while_binding], ctx))
 
     def _visit_return(self, stmt, ctx) -> fpc.Expr:
         return self._visit(stmt.expr, ctx)
@@ -239,7 +257,7 @@ class FPCoreCompileInstance(ReduceVisitor):
 
         for stmt in reversed(stmts):
             match stmt:
-                case VarAssign() | TupleAssign() | WhileStmt():
+                case VarAssign() | TupleAssign() | WhileStmt() | ForStmt():
                     e = self._visit(stmt, e)
                 case Return():
                     raise FPCoreCompileError('return statements must be at the end of blocks')

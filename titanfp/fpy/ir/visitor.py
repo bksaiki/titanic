@@ -351,10 +351,10 @@ class DefaultTransformVisitor(TransformVisitor):
         return WhileStmt(cond, body, phis)
 
     def _visit_for_stmt(self, stmt, ctx):
-        iter = self._visit(stmt.iter, ctx)
+        iterable = self._visit(stmt.iterable, ctx)
         body = self._visit(stmt.body, ctx)
         phis = self._copy_phi_nodes(stmt.phis)
-        return ForStmt(stmt.var, stmt.ty, iter, body, phis)
+        return ForStmt(stmt.var, stmt.ty, iterable, body, phis)
 
     def _visit_return(self, stmt, ctx: Any):
         return Return(self._visit(stmt.expr, ctx))
