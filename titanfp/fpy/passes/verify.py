@@ -26,27 +26,28 @@ class _VerifyPassInstance(DefaultVisitor):
             raise InvalidIRError(f'undefined variable {e.name}')
 
     def _visit_var_assign(self, stmt, ctx: _CtxType):
+        self._visit(stmt.expr, ctx)
         if stmt.var in self.types:
             raise InvalidIRError(f'reassignment of variable {stmt.var}')
         self.types[stmt.var] = AnyType()
         ctx.add(stmt.var)
-        self._visit(stmt.expr, ctx)
         return ctx
 
     def _visit_tuple_assign(self, stmt, ctx: _CtxType):
+        self._visit(stmt.expr, ctx)
         for var in stmt.vars.names():
             if var in self.types:
                 raise InvalidIRError(f'reassignment of variable {var}')
             self.types[var] = AnyType()
             ctx.add(var)
-        self._visit(stmt.expr, ctx)
         return ctx
 
     def _visit_if1_stmt(self, stmt, ctx: _CtxType):
         self._visit(stmt.cond, ctx)
         body_ctx = self._visit_block(stmt.body, ctx.copy())
         # check validty of phi nodes and update context
-        for name, (orig, new) in stmt.phis.items():
+        for phi in stmt.phis:
+            name, orig, new = phi.name, phi.lhs, phi.rhs
             if name in self.types:
                 raise InvalidIRError(f'reassignment of variable {name}')
             if orig not in ctx:
@@ -63,7 +64,8 @@ class _VerifyPassInstance(DefaultVisitor):
         ift_ctx = self._visit_block(stmt.ift, ctx.copy())
         iff_ctx = self._visit_block(stmt.iff, ctx.copy())
         # check validty of phi nodes and update context
-        for name, (ift_name, iff_name) in stmt.phis.items():
+        for phi in stmt.phis:
+            name, ift_name, iff_name = phi.name, phi.lhs, phi.rhs
             if name in self.types:
                 raise InvalidIRError(f'reassignment of variable {name}')
             if ift_name not in ift_ctx:
@@ -77,7 +79,8 @@ class _VerifyPassInstance(DefaultVisitor):
 
     def _visit_while_stmt(self, stmt, ctx: _CtxType):
         # check (partial) validity of phi variables and update context
-        for name, (orig, _) in stmt.phis.items():
+        for phi in stmt.phis:
+            name, orig = phi.name, phi.lhs
             if name in self.types:
                 raise InvalidIRError(f'reassignment of variable {name}')
             if orig not in ctx:
@@ -89,7 +92,8 @@ class _VerifyPassInstance(DefaultVisitor):
         self._visit(stmt.cond, ctx)
         body_ctx = self._visit_block(stmt.body, ctx.copy())
         # check (partial) validity of phi variables
-        for name, (_, new) in stmt.phis.items():
+        for phi in stmt.phis:
+            name, new = phi.name, phi.rhs
             if new not in body_ctx:
                 raise InvalidIRError(f'undefined variable in RHS of phi {name} = (_, {new})')
             ctx -= { new }
@@ -97,13 +101,15 @@ class _VerifyPassInstance(DefaultVisitor):
 
     def _visit_for_stmt(self, stmt, ctx: _CtxType):
         # check iterable expression
+        self._visit(stmt.iterable, ctx)
+        # bind the loop variable
         if stmt.var in self.types:
             raise InvalidIRError(f'reassignment of variable {stmt.var}')
         self.types[stmt.var] = AnyType()
         ctx.add(stmt.var)
-        self._visit(stmt.iterable, ctx)
         # check (partial) validity of phi variables and update context
-        for name, (orig, _) in stmt.phis.items():
+        for phi in stmt.phis:
+            name, orig = phi.name, phi.lhs
             if name in self.types:
                 raise InvalidIRError(f'reassignment of variable {name}')
             if orig not in ctx:
@@ -114,7 +120,8 @@ class _VerifyPassInstance(DefaultVisitor):
         # check body
         body_ctx = self._visit_block(stmt.body, ctx.copy())
         # check (partial) validity of phi variables
-        for name, (_, new) in stmt.phis.items():
+        for phi in stmt.phis:
+            name, new = phi.name, phi.rhs
             if new not in body_ctx:
                 raise InvalidIRError(f'undefined variable in RHS of phi {name} = (_, {new})')
             ctx -= { new }
@@ -140,12 +147,12 @@ class _VerifyPassInstance(DefaultVisitor):
         return super()._visit(e, ctx)
 
 
-class VerifyPass:
+class VerifyIR:
     """
-    Checks that an FPy IR instance is syntacticall valid,
+    Checks that an FPy IR instance is syntactically valid,
     well-typed, and in static single assignment (SSA) form.
     """
 
-    def check(self, func: Function):
-        print(func)
+    @staticmethod
+    def check(func: Function):
         _VerifyPassInstance(func).check()

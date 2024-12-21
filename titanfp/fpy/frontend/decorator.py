@@ -10,7 +10,7 @@ from .fpyast import Function
 from .live_vars import LiveVarAnalysis
 from .parser import Parser
 
-from ..passes import VerifyPass
+from ..passes import VerifyIR, DefineUse
 
 def fpcore(*args, **kwargs):
     """
@@ -38,11 +38,10 @@ def fpcore(*args, **kwargs):
         # analyze and lower to the IR
         DefinitionAnalysis().analyze(ast)
         LiveVarAnalysis().analyze(ast)
-        ir = IRCodegen().lower(ast)
-        VerifyPass().check(ir)
-        # print(ir)
+        ir = IRCodegen.lower(ast)
+        VerifyIR.check(ir)
+        DefineUse.analyze(ir)
         return ir
-
 
     # handle any arguments to the decorator
     match args:

@@ -1,5 +1,5 @@
 """
-Local variable analysis for the FPy AST.
+Definition analyzer for the FPy AST.
 """
 
 from .fpyast import *

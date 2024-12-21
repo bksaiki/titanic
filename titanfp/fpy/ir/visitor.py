@@ -243,7 +243,7 @@ class DefaultVisitor(Visitor):
         self._visit(stmt.body, ctx)
 
     def _visit_return(self, stmt: Return, ctx: Any):
-        return self._visit(stmt.expr, ctx)
+        self._visit(stmt.expr, ctx)
 
     def _visit_block(self, block: Block, ctx: Any):
         for stmt in block.stmts:

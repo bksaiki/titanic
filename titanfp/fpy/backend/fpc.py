@@ -1,5 +1,6 @@
 """Compilation from FPy IR to FPCore"""
 
+from ..passes import DefineUse, SimplifyIf
 from ..ir import *
 
 from ...fpbench import fpcast as fpc
@@ -246,4 +247,5 @@ class FPCoreCompiler:
     """Compiler from FPy IR to FPCore"""
 
     def compile(self, func: Function) -> fpc.FPCore:
+        # func = SimplifyIf.apply(func)
         return FPCoreCompileInstance(func).compile()

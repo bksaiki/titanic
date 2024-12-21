@@ -233,9 +233,11 @@ class _IRCodegenInstance(AstVisitor):
         )
 
     def _visit_var_assign(self, stmt, ctx: _CtxType):
+        # compile the expression
+        e = self._visit(stmt.expr, ctx)
+        # generate fresh variable for the assignment
         t = self.gensym.fresh(stmt.var)
         ctx = { **ctx, stmt.var: t }
-        e = self._visit(stmt.expr, ctx)
         s = ir.VarAssign(t, ir.AnyType(), e)
         return s, ctx
     
@@ -251,11 +253,13 @@ class _IRCodegenInstance(AstVisitor):
         return ir.TupleBinding(new_vars)
 
     def _visit_tuple_assign(self, stmt, ctx: _CtxType):
+        # compile the expression
+        e = self._visit(stmt.expr, ctx)
+        # generate fresh variables for the tuple assignment
         for name in stmt.vars.names():
             t = self.gensym.fresh(name)
             ctx = { **ctx, name: t }
         vars = self._compile_tuple_binding(stmt.vars, ctx)
-        e = self._visit(stmt.expr, ctx)
         tys = ir.TensorType([ir.AnyType() for _ in stmt.vars])
         s = ir.TupleAssign(vars, tys, e)
         return s, ctx
@@ -266,14 +270,14 @@ class _IRCodegenInstance(AstVisitor):
         body, body_ctx = self._visit_block(stmt.ift, ctx)
         _, live_out = stmt.attribs[LiveVarAnalysis.analysis_name]
         # merge live variables and create new context
-        phis: ir.PhiNodes = dict()
+        phis: list[ir.PhiNode] = []
         new_ctx: _CtxType = dict()
         for name in live_out:
             old_name = ctx[name]
             new_name = body_ctx[name]
             if old_name != new_name:
                 t = self.gensym.fresh(name)
-                phis[t] = (old_name, new_name)
+                phis.append(ir.PhiNode(t, old_name, new_name, ir.AnyType()))
                 new_ctx[name] = t
             else:
                 new_ctx[name] = ctx[name]
@@ -289,7 +293,7 @@ class _IRCodegenInstance(AstVisitor):
         iff, iff_ctx = self._visit_block(stmt.iff, ctx)
         _, live_out = stmt.attribs[LiveVarAnalysis.analysis_name]
         # merge live variables
-        phis: ir.PhiNodes = dict()
+        phis: list[ir.PhiNode] = []
         new_ctx: _CtxType = dict()
         for name in live_out:
             # well-formedness means that the variable is in both contexts
@@ -300,7 +304,7 @@ class _IRCodegenInstance(AstVisitor):
             if ift_name != iff_name:
                 # variable updated on at least one branch => create phi node
                 t = self.gensym.fresh(name)
-                phis[t] = (ift_name, iff_name)
+                phis.append(ir.PhiNode(t, ift_name, iff_name, ir.AnyType()))
                 new_ctx[name] = t
             else:
                 # variable not mutated => keep the same name
@@ -340,12 +344,12 @@ class _IRCodegenInstance(AstVisitor):
         cond = self._visit(stmt.cond, loop_ctx)
         body, body_ctx = self._visit_block(stmt.body, loop_ctx)
         # merge all changed variables using phi nodes
-        phis: ir.PhiNodes = dict()
+        phis: list[ir.PhiNode] = []
         for name, t in changed_map.items():
             old_name = ctx[name]
             new_name = body_ctx[name]
             assert old_name != new_name, 'must be different by definition analysis'
-            phis[t] = (old_name, new_name)
+            phis.append(ir.PhiNode(t, old_name, new_name, ir.AnyType()))
         # create new statement and context
         s = ir.WhileStmt(cond, body, phis)
         new_ctx: _CtxType = dict()
@@ -357,7 +361,9 @@ class _IRCodegenInstance(AstVisitor):
         return s, new_ctx
 
     def _visit_for_stmt(self, stmt, ctx: _CtxType):
+        # compile the iterable expression
         cond = self._visit(stmt.iterable, ctx)
+        # generate fresh variable for the loop variable
         iter_var = self.gensym.fresh(stmt.var)
         ctx = { **ctx, stmt.var: iter_var }
         # merge variables initialized before the block that
@@ -381,12 +387,12 @@ class _IRCodegenInstance(AstVisitor):
         # compile the loop body using the loop context
         body, body_ctx = self._visit_block(stmt.body, loop_ctx)
         # merge all changed variables using phi nodes
-        phis: ir.PhiNodes = dict()
+        phis: list[ir.PhiNode] = []
         for name, t in changed_map.items():
             old_name = ctx[name]
             new_name = body_ctx[name]
             assert old_name != new_name, 'must be different by definition analysis'
-            phis[t] = (old_name, new_name)
+            phis.append(ir.PhiNode(t, old_name, new_name, ir.AnyType()))
         # create new statement and context
         s = ir.ForStmt(iter_var, ir.AnyType(), cond, body, phis)
         new_ctx: _CtxType = dict()
@@ -422,5 +428,6 @@ class _IRCodegenInstance(AstVisitor):
 class IRCodegen:
     """Lowers a FPy AST to FPy IR."""
     
-    def lower(self, f: Function) -> ir.Function:
+    @staticmethod
+    def lower(f: Function) -> ir.Function:
         return _IRCodegenInstance(f).lower()

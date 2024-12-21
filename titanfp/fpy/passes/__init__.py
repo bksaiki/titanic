@@ -1,3 +1,5 @@
 """Analysis or transformation passes on the FPy IR."""
 
-from .verify import VerifyPass
+from .define_use import DefineUse
+from .simplify_if import SimplifyIf
+from .verify import VerifyIR

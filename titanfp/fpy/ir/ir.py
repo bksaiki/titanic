@@ -9,6 +9,10 @@ from ..utils import CompareOp
 
 class IR:
     """FPy IR: base class for all IR nodes."""
+    attribs: set[str]
+
+    def __init__(self):
+        self.attribs = {}
 
     def __repr__(self):
         name = self.__class__.__name__
@@ -18,24 +22,35 @@ class IR:
 class Expr(IR):
     """FPy IR: expression"""
 
+    def __init__(self):
+        super().__init__()
+
 class Stmt(IR):
     """FPy IR: statement"""
+
+    def __init__(self):
+        super().__init__()
 
 class Block(IR):
     """FPy IR: block statement"""
     stmts: list[Stmt]
 
     def __init__(self, stmts: list[Stmt]):
+        super().__init__()
         self.stmts = stmts
 
 class ValueExpr(Expr):
     """FPy node: abstract terminal"""
+
+    def __init__(self):
+        super().__init__()
 
 class Var(ValueExpr):
     """FPy node: variable"""
     name: str
 
     def __init__(self, name: str):
+        super().__init__()
         self.name = name
 
 class Decnum(ValueExpr):
@@ -43,6 +58,7 @@ class Decnum(ValueExpr):
     val: str
 
     def __init__(self, val: str):
+        super().__init__()
         self.val = val
 
 class Integer(ValueExpr):
@@ -50,6 +66,7 @@ class Integer(ValueExpr):
     val: int
 
     def __init__(self, val: int):
+        super().__init__()
         self.val = val
 
 class Digits(ValueExpr):
@@ -363,6 +380,7 @@ class TupleExpr(Expr):
     children: list[Expr]
 
     def __init__(self, *children: Expr):
+        super().__init__()
         self.children = list(children)
 
 class IfExpr(Expr):
@@ -384,6 +402,7 @@ class VarAssign(Stmt):
     expr: Expr
 
     def __init__(self, var: str, ty: IRType, expr: Expr):
+        super().__init__()
         self.var = var
         self.ty = ty
         self.expr = expr
@@ -393,6 +412,7 @@ class TupleBinding(IR):
     elts: list[str | Self]
 
     def __init__(self, elts: list[str | Self]):
+        super().__init__()
         self.elts = elts
 
     def __iter__(self):
@@ -416,20 +436,33 @@ class TupleAssign(Stmt):
     expr: Expr
 
     def __init__(self, vars: TupleBinding, ty: IRType, expr: Expr):
+        super().__init__()
         self.vars = vars
         self.ty = ty
         self.expr = expr
 
-PhiNodes = dict[str, tuple[str, str]]
-"""Type of phi nodes embedded in statements."""
+class PhiNode(IR):
+    """FPy IR: phi node"""
+    name: str
+    lhs: str
+    rhs: str
+    ty: IRType
+
+    def __init__(self, name: str, lhs: str, rhs: str, ty: IRType):
+        super().__init__()
+        self.name = name
+        self.lhs = lhs
+        self.rhs = rhs
+        self.ty = ty
 
 class If1Stmt(Stmt):
     """FPy IR: one-armed if statement"""
     cond: Expr
     body: Block
-    phis: PhiNodes
+    phis: list[PhiNode]
 
-    def __init__(self, cond: Expr, body: Block, phis: PhiNodes):
+    def __init__(self, cond: Expr, body: Block, phis: list[PhiNode]):
+        super().__init__()
         self.cond = cond
         self.body = body
         self.phis = phis
@@ -439,9 +472,10 @@ class IfStmt(Stmt):
     cond: Expr
     ift: Block
     iff: Block
-    phis: PhiNodes
+    phis: list[PhiNode]
 
-    def __init__(self, cond: Expr, ift: Block, iff: Block, phis: PhiNodes):
+    def __init__(self, cond: Expr, ift: Block, iff: Block, phis: list[PhiNode]):
+        super().__init__()
         self.cond = cond
         self.ift = ift
         self.iff = iff
@@ -451,9 +485,10 @@ class WhileStmt(Stmt):
     """FPy IR: while statement"""
     cond: Expr
     body: Block
-    phis: PhiNodes
+    phis: list[PhiNode]
 
-    def __init__(self, cond: Expr, body: Block, phis: PhiNodes):
+    def __init__(self, cond: Expr, body: Block, phis: list[PhiNode]):
+        super().__init__()
         self.cond = cond
         self.body = body
         self.phis = phis
@@ -464,9 +499,10 @@ class ForStmt(Stmt):
     ty: IRType
     iterable: Expr
     body: Block
-    phis: PhiNodes
+    phis: list[PhiNode]
 
-    def __init__(self, var: str, ty: IRType, iterable: Expr, body: Block, phis: PhiNodes):
+    def __init__(self, var: str, ty: IRType, iterable: Expr, body: Block, phis: list[PhiNode]):
+        super().__init__()
         self.var = var
         self.ty = ty
         self.iterable = iterable
@@ -478,6 +514,7 @@ class Return(Stmt):
     expr: Expr
 
     def __init__(self, expr: Expr):
+        super().__init__()
         self.expr = expr
 
 class Argument(IR):
@@ -486,6 +523,7 @@ class Argument(IR):
     ty: IRType
 
     def __init__(self, name: str, ty: IRType):
+        super().__init__()
         self.name = name
         self.ty = ty
 
@@ -502,6 +540,7 @@ class Function(IR):
         body: Block,
         ty: IRType
     ):
+        super().__init__()
         self.name = name
         self.args = args
         self.body = body
