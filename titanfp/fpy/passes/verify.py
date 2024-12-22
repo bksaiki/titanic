@@ -54,6 +54,8 @@ class _VerifyPassInstance(DefaultVisitor):
                 raise InvalidIRError(f'undefined variable in LHS of phi {name} = ({orig}, {new})')
             if new not in body_ctx:
                 raise InvalidIRError(f'undefined variable in RHS of phi {name} = ({orig}, {new})')
+            if new == name:
+                raise InvalidIRError(f'phi variable assigned to itself {name} = ({orig}, {new})')
             self.types[name] = AnyType()
             ctx.add(name)
             ctx -= { orig, new }
@@ -72,6 +74,8 @@ class _VerifyPassInstance(DefaultVisitor):
                 raise InvalidIRError(f'undefined variable in LHS of phi {name} = ({ift_name}, {iff_name})')
             if iff_name not in iff_ctx:
                 raise InvalidIRError(f'undefined variable in RHS of phi {name} = ({ift_name}, {iff_name})')
+            if ift_name == iff_name:
+                raise InvalidIRError(f'phi variable is unnecessary {name} = ({ift_name}, {iff_name})')
             self.types[name] = AnyType()
             ctx.add(name)
             ctx -= { ift_name, iff_name }
@@ -93,9 +97,11 @@ class _VerifyPassInstance(DefaultVisitor):
         body_ctx = self._visit_block(stmt.body, ctx.copy())
         # check (partial) validity of phi variables
         for phi in stmt.phis:
-            name, new = phi.name, phi.rhs
+            name, orig, new = phi.name, phi.lhs, phi.rhs
             if new not in body_ctx:
                 raise InvalidIRError(f'undefined variable in RHS of phi {name} = (_, {new})')
+            if new == name:
+                raise InvalidIRError(f'phi variable assigned to itself {name} = ({orig}, {new})')
             ctx -= { new }
         return ctx
 
@@ -121,9 +127,11 @@ class _VerifyPassInstance(DefaultVisitor):
         body_ctx = self._visit_block(stmt.body, ctx.copy())
         # check (partial) validity of phi variables
         for phi in stmt.phis:
-            name, new = phi.name, phi.rhs
+            name, orig, new = phi.name, phi.lhs, phi.rhs
             if new not in body_ctx:
                 raise InvalidIRError(f'undefined variable in RHS of phi {name} = (_, {new})')
+            if new == name:
+                raise InvalidIRError(f'phi variable assigned to itself {name} = ({orig}, {new})')
             ctx -= { new }
         return ctx
 

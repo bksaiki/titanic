@@ -319,7 +319,6 @@ def lod_anisotropic(
         aniso_ratio = fmax(1.0, aniso_ratio * minor)
 
     lod = log2(minor)
-
     return lod, aniso_ratio, aniso_dir_u, aniso_dir_v
 
 
