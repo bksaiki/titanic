@@ -1,6 +1,9 @@
 """Transformation pass to rewrite if statements to if expressions."""
 
+from typing import Optional
+
 from .define_use import DefineUse
+from .verify import VerifyIR
 
 from ..ir import *
 from ..utils import Gensym
@@ -10,10 +13,12 @@ class _SimplifyIfInstance(DefaultTransformVisitor):
     func: Function
     gensym: Gensym
 
-    def __init__(self, func: Function):
-        uses = DefineUse().analyze(func)
+    def __init__(self, func: Function, names: set[str]):
         self.func = func
-        self.gensym = Gensym(*uses.keys())
+        self.gensym = Gensym(*names)
+    
+    def apply(self):
+        return self._visit(self.func, None)
 
     def _visit_if1_stmt(self, stmt: If1Stmt, ctx):
         stmts: list[Stmt] = []
@@ -69,10 +74,6 @@ class _SimplifyIfInstance(DefaultTransformVisitor):
         return Block(stmts)
 
 
-    def apply(self):
-        return self._visit(self.func, None)
-
-
 class SimplifyIf:
     """
     Control flow simplifification: transform if statements to if expressions.
@@ -98,5 +99,10 @@ class SimplifyIf:
     """
 
     @staticmethod
-    def apply(func: Function):
-        return _SimplifyIfInstance(func).apply()
+    def apply(func: Function, names: Optional[set[str]] = None):
+        if names is None:
+            uses = DefineUse.analyze(func)
+            names = (uses.keys())
+        ir = _SimplifyIfInstance(func, names).apply()
+        VerifyIR.check(ir)
+        return ir

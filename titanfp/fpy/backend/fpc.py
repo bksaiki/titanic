@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from ..passes import DefineUse, SimplifyIf
+from ..passes import *
 from ..ir import *
 from ..utils import Gensym
 
@@ -192,6 +192,11 @@ class FPCoreCompileInstance(ReduceVisitor):
     def _visit_tuple_expr(self, e, ctx) -> fpc.Expr:
         return fpc.Array(*[self._visit(c, ctx) for c in e.children])
 
+    def _visit_ref_expr(self, e, ctx) -> fpc.Expr:
+        array = self._visit(e.array, ctx)
+        indices = [self._visit(c, ctx) for c in e.indices]
+        return fpc.Ref(array, *indices)
+
     def _visit_if_expr(self, e, ctx) -> fpc.Expr:
         return fpc.If(
             self._visit(e.cond, ctx),
@@ -208,7 +213,7 @@ class FPCoreCompileInstance(ReduceVisitor):
         tuple_bind = (tuple_id, self._visit(stmt.expr, None))
         destruct_bindings = self._compile_tuple_binding(tuple_id, stmt.binding, [])
         return fpc.Let([tuple_bind] + destruct_bindings, ctx)
-    
+
     def _visit_if1_stmt(self, stmt, ctx):
         raise FPCoreCompileError(f'cannot compile to FPCore: {type(stmt).__name__}')
 
@@ -286,5 +291,6 @@ class FPCoreCompiler:
     """Compiler from FPy IR to FPCore"""
 
     def compile(self, func: Function) -> fpc.FPCore:
+        func = WhileBundling.apply(func)
         func = SimplifyIf.apply(func)
         return FPCoreCompileInstance(func).compile()

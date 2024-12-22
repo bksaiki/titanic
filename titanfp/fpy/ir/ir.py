@@ -2,7 +2,7 @@
 This module contains the intermediate representation (IR).
 """
 
-from typing import Self
+from typing import Self, Sequence
 
 from .types import IRType
 from ..utils import CompareOp
@@ -383,6 +383,16 @@ class TupleExpr(Expr):
         super().__init__()
         self.children = list(children)
 
+class RefExpr(Expr):
+    """FPy node: ref expression"""
+    array: Expr
+    indices: list[Expr]
+
+    def __init__(self, array: Expr, *indices: Expr):
+        super().__init__()
+        self.array = array
+        self.indices = indices
+
 class IfExpr(Expr):
     """FPy node: if expression (ternary)"""
     cond: Expr
@@ -411,9 +421,9 @@ class TupleBinding(IR):
     """FPy IR: tuple binding"""
     elts: list[str | Self]
 
-    def __init__(self, elts: list[str | Self]):
+    def __init__(self, elts: Sequence[str | Self]):
         super().__init__()
-        self.elts = elts
+        self.elts = list(elts)
 
     def __iter__(self):
         return iter(self.elts)
@@ -435,9 +445,9 @@ class TupleAssign(Stmt):
     ty: IRType
     expr: Expr
 
-    def __init__(self, vars: TupleBinding, ty: IRType, expr: Expr):
+    def __init__(self, binding: TupleBinding, ty: IRType, expr: Expr):
         super().__init__()
-        self.binding = vars
+        self.binding = binding
         self.ty = ty
         self.expr = expr
 

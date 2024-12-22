@@ -3,3 +3,4 @@
 from .define_use import DefineUse
 from .simplify_if import SimplifyIf
 from .verify import VerifyIR
+from .while_bundling import WhileBundling
