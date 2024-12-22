@@ -223,6 +223,15 @@ def test_for2():
             accum += i * j
     return accum
 
+@fpcore
+def test_for3():
+    x = 0
+    y = 0
+    for i in range(5):
+        x += i
+        y += 2 * i
+    return x, y
+
 ### Examples
 
 @fpcore(
@@ -346,6 +355,7 @@ cores: list[Function] = [
     test_while5,
     test_for1,
     test_for2,
+    test_for3,
     # Examples
     nmse3_1,
     instCurrent,

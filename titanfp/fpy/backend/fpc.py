@@ -291,6 +291,7 @@ class FPCoreCompiler:
     """Compiler from FPy IR to FPCore"""
 
     def compile(self, func: Function) -> fpc.FPCore:
+        func = ForBundling.apply(func)
         func = WhileBundling.apply(func)
         func = SimplifyIf.apply(func)
         return FPCoreCompileInstance(func).compile()
