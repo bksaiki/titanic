@@ -345,37 +345,40 @@ class DefaultTransformVisitor(TransformVisitor):
         val = self._visit(stmt.expr, ctx)
         return TupleAssign(vars, stmt.ty, val)
 
-    def _copy_phi_nodes(self, phis: list[PhiNode]):
-        return [PhiNode(p.name, p.lhs, p.rhs, p.ty) for p in phis]
-
     def _visit_if1_stmt(self, stmt, ctx):
         cond = self._visit(stmt.cond, ctx)
         body = self._visit(stmt.body, ctx)
-        phis = self._copy_phi_nodes(stmt.phis)
+        phis = [self._visit_phi(phi, ctx) for phi in stmt.phis]
         return If1Stmt(cond, body, phis)
 
     def _visit_if_stmt(self, stmt, ctx: Any):
         cond = self._visit(stmt.cond, ctx)
         ift = self._visit(stmt.ift, ctx)
         iff = self._visit(stmt.iff, ctx)
-        phis = self._copy_phi_nodes(stmt.phis)
+        phis = [self._visit_phi(phi, ctx) for phi in stmt.phis]
         return IfStmt(cond, ift, iff, phis)
     
     def _visit_while_stmt(self, stmt, ctx):
         cond = self._visit(stmt.cond, ctx)
         body = self._visit(stmt.body, ctx)
-        phis = self._copy_phi_nodes(stmt.phis)
+        phis = [self._visit_phi(phi, ctx) for phi in stmt.phis]
         return WhileStmt(cond, body, phis)
 
     def _visit_for_stmt(self, stmt, ctx):
         iterable = self._visit(stmt.iterable, ctx)
         body = self._visit(stmt.body, ctx)
-        phis = self._copy_phi_nodes(stmt.phis)
+        phis = [self._visit_phi(phi, ctx) for phi in stmt.phis]
         return ForStmt(stmt.var, stmt.ty, iterable, body, phis)
 
     def _visit_return(self, stmt, ctx: Any):
         return Return(self._visit(stmt.expr, ctx))
-    
+
+    #######################################################
+    # Phi node
+
+    def _visit_phi(self, phi: PhiNode, ctx: Any):
+        return PhiNode(phi.name, phi.lhs, phi.rhs, phi.ty)
+
     #######################################################
     # Block
 

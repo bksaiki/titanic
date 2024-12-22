@@ -391,7 +391,7 @@ class RefExpr(Expr):
     def __init__(self, array: Expr, *indices: Expr):
         super().__init__()
         self.array = array
-        self.indices = indices
+        self.indices = list(indices)
 
 class IfExpr(Expr):
     """FPy node: if expression (ternary)"""
