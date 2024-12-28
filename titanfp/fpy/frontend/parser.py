@@ -313,6 +313,8 @@ class Parser:
                     return Call(name, [self._parse_expr(arg) for arg in e.args], loc)
             case ast.Tuple():
                 return TupleExpr([self._parse_expr(e) for e in e.elts], loc)
+            case ast.List():
+                return TupleExpr([self._parse_expr(e) for e in e.elts], loc)
             case ast.IfExp():
                 cond = self._parse_expr(e.test)
                 ift = self._parse_expr(e.body)

@@ -104,21 +104,32 @@ def test_ife4():
   return 1.0 if (x + 1.0) < (y + 2.0) <= (z + 3.0) < (t + 4.0) else 0.0
 
 @fpcore
-def test_array1():
+def test_tuple1():
     return (1.0, 2.0, 3.0)
 
 @fpcore
-def test_array2():
+def test_tuple2():
     return 1.0, 2.0, 3.0
 
 @fpcore
-def test_array3():
+def test_tuple3():
     x, y = 1.0, 2.0
     return x + y
 
 @fpcore
-def test_array4():
+def test_tuple4():
     x, y = (1.0, 2.0), (3.0, 4.0)
+    x0, x1 = x
+    y0, y1 = y
+    return x0 * y0 + x1 * y1
+
+@fpcore
+def test_list1():
+    return [1.0, 2.0, 3.0]
+
+@fpcore
+def test_list2():
+    x, y = [1.0, 2.0], [3.0, 4.0]
     x0, x1 = x
     y0, y1 = y
     return x0 * y0 + x1 * y1
@@ -356,10 +367,12 @@ cores: list[Function] = [
     test_ife2,
     test_ife3,
     test_ife4,
-    test_array1,
-    test_array2,
-    test_array3,
-    test_array4,
+    test_tuple1,
+    test_tuple2,
+    test_tuple3,
+    test_tuple4,
+    test_list1,
+    test_list2,
     test_if1,
     test_if2,
     test_if3,
