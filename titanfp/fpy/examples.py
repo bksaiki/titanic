@@ -134,6 +134,10 @@ def test_list2():
     y0, y1 = y
     return x0 * y0 + x1 * y1
 
+@fpcore
+def test_list_comp1():
+    return [x + 1 for x in range(5)]
+
 @fpcore(name='Test if statement (1/4)')
 def test_if1():
     t = 0
@@ -373,6 +377,7 @@ cores: list[Function] = [
     test_tuple4,
     test_list1,
     test_list2,
+    test_list_comp1,
     test_if1,
     test_if2,
     test_if3,

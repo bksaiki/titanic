@@ -197,6 +197,17 @@ class FPCoreCompileInstance(ReduceVisitor):
         indices = [self._visit(c, ctx) for c in e.indices]
         return fpc.Ref(array, *indices)
 
+    def _visit_comp_expr(self, e, ctx):
+        tuple_id = self.gensym.fresh('t')
+        iter_id = self.gensym.fresh('i')
+        iterable = self._visit(e.iterable, ctx)
+        elt = self._visit(e.elt, ctx)
+
+        let_bindings = [(tuple_id, iterable)]
+        tensor_dims = [(iter_id, fpc.Size(tuple_id))]
+        ref_bindings = [(e.var, fpc.Ref(fpc.Var(tuple_id), fpc.Var(iter_id)))]
+        return fpc.Let(let_bindings, fpc.Tensor(tensor_dims, fpc.Let(ref_bindings, elt)))
+
     def _visit_if_expr(self, e, ctx) -> fpc.Expr:
         return fpc.If(
             self._visit(e.cond, ctx),

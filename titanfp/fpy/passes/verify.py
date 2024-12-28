@@ -25,6 +25,11 @@ class _VerifyPassInstance(DefaultVisitor):
         if e.name not in ctx:
             raise InvalidIRError(f'undefined variable {e.name}')
 
+    def _visit_comp_expr(self, e, ctx):
+        self._visit(e.iterable, ctx)
+        self.types[e.var] = AnyType()
+        self._visit(e.elt, { *ctx, e.var })
+
     def _visit_var_assign(self, stmt, ctx: _CtxType):
         self._visit(stmt.expr, ctx)
         if stmt.var in self.types:

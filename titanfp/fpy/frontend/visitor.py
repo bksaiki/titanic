@@ -54,6 +54,10 @@ class AstVisitor(ABC):
         raise NotImplementedError('virtual method')
 
     @abstractmethod
+    def _visit_comp_expr(self, e: CompExpr, ctx: Any) -> Any:
+        raise NotImplementedError('virtual method')
+
+    @abstractmethod
     def _visit_if_expr(self, e: IfExpr, ctx: Any) -> Any:
         raise NotImplementedError('virtual method')
 
@@ -124,6 +128,8 @@ class AstVisitor(ABC):
                 return self._visit_call(e, ctx)
             case TupleExpr():
                 return self._visit_tuple_expr(e, ctx)
+            case CompExpr():
+                return self._visit_comp_expr(e, ctx)
             case IfExpr():
                 return self._visit_if_expr(e, ctx)
             case _:

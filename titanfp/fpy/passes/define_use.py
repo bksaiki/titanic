@@ -16,7 +16,7 @@ class _DefineUseInstance(DefaultVisitor):
     def analyze(self):
         if self.done:
             raise RuntimeError('analysis already performed')
-        self._visit(self.func, {})
+        self._visit(self.func, None)
         self.done = True
         return self.uses
 
@@ -24,6 +24,11 @@ class _DefineUseInstance(DefaultVisitor):
         if e.name not in self.uses:
             raise NotImplementedError(f'undefined variable {e.name}')
         self.uses[e.name].add(e)
+
+    def _visit_comp_expr(self, e, ctx):
+        self._visit(e.iterable, ctx)
+        self.uses[e.var] = set()
+        self._visit(e.elt, ctx)
 
     def _visit_var_assign(self, stmt: VarAssign, ctx):
         self._visit(stmt.expr, ctx)

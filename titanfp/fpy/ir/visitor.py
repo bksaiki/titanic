@@ -57,6 +57,11 @@ class BaseVisitor(ABC):
         raise NotImplementedError('virtual method')
 
     @abstractmethod
+    def _visit_comp_expr(self, e: CompExpr, ctx: Any):
+        """Visitor method for `CompExpr` nodes."""
+        raise NotImplementedError('virtual method')
+
+    @abstractmethod
     def _visit_if_expr(self, e: IfExpr, ctx: Any):
         """Visitor method for `IfExpr` nodes."""
         raise NotImplementedError('virtual method')
@@ -139,6 +144,8 @@ class BaseVisitor(ABC):
                 return self._visit_tuple_expr(e, ctx)
             case RefExpr():
                 return self._visit_ref_expr(e, ctx)
+            case CompExpr():
+                return self._visit_comp_expr(e, ctx)
             case IfExpr():
                 return self._visit_if_expr(e, ctx)
             case _:
@@ -221,10 +228,14 @@ class DefaultVisitor(Visitor):
         for c in e.children:
             self._visit(c, ctx)
 
-    def _visit_ref_expr(self, e, ctx):
+    def _visit_ref_expr(self, e: RefExpr, ctx):
         self._visit(e.array, ctx)
         for c in e.indices:
             self._visit(c, ctx)
+
+    def _visit_comp_expr(self, e: CompExpr, ctx):
+        self._visit(e.iterable, ctx)
+        self._visit(e.elt, ctx)
 
     def _visit_if_expr(self, e: IfExpr, ctx: Any):
         self._visit(e.cond, ctx)
@@ -315,6 +326,11 @@ class DefaultTransformVisitor(TransformVisitor):
         array = self._visit(e.array, ctx)
         indices = [self._visit(c, ctx) for c in e.indices]
         return RefExpr(array, *indices)
+
+    def _visit_comp_expr(self, e, ctx):
+        iterable = self._visit(e.iterable, ctx)
+        elt = self._visit(e.elt, ctx)
+        return CompExpr(elt, e.var, iterable)
 
     def _visit_if_expr(self, e, ctx: Any):
         cond = self._visit(e.cond, ctx)

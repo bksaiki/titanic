@@ -53,6 +53,9 @@ class DefinitionAnalysis(AstVisitor):
     def _visit_tuple_expr(self, e, ctx):
         raise NotImplementedError('should not be called')
 
+    def _visit_comp_expr(self, e, ctx):
+        raise NotImplementedError('should not be called')
+
     def _visit_if_expr(self, e, ctx):
         raise NotImplementedError('should not be called')
 

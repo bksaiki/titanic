@@ -273,6 +273,24 @@ class TupleExpr(Expr):
         super().__init__(loc)
         self.args = args
 
+class CompExpr(Expr):
+    """FPy AST: comprehension expression"""
+    elt: Expr
+    var: str
+    iterable: Expr
+
+    def __init__(
+        self,
+        elt: Expr,
+        var: str,
+        iterable: Expr,
+        loc: Location
+    ):
+        super().__init__(loc)
+        self.elt = elt
+        self.var = var
+        self.iterable = iterable
+
 class IfExpr(Expr):
     """FPy AST: if expression"""
     cond: Expr

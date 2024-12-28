@@ -315,6 +315,12 @@ class Parser:
                 return TupleExpr([self._parse_expr(e) for e in e.elts], loc)
             case ast.List():
                 return TupleExpr([self._parse_expr(e) for e in e.elts], loc)
+            case ast.ListComp():
+                if len(e.generators) != 1:
+                    raise FPyParserError(loc, 'FPy only supports a single generator', e)
+                elt = self._parse_expr(e.elt)
+                var, iterable = self._parse_comprehension(e.generators[0], loc)
+                return CompExpr(elt, var, iterable, loc)
             case ast.IfExp():
                 cond = self._parse_expr(e.test)
                 ift = self._parse_expr(e.body)
@@ -332,6 +338,17 @@ class Parser:
                 return TupleBinding([self._parse_target(elt, st) for elt in target.elts], loc)
             case _:
                 raise FPyParserError(loc, 'FPy expects an identifier', target, st)
+ 
+    def _parse_comprehension(self, gen: ast.comprehension, loc: Location):
+        if gen.is_async:
+            raise FPyParserError(loc, 'FPy does not support async comprehensions', gen)
+        if gen.ifs != []:
+            raise FPyParserError(loc, 'FPy does not support if conditions in comprehensions', gen)
+        match gen.target:
+            case ast.Name():
+                return gen.target.id, self._parse_expr(gen.iter)
+            case _:
+                raise FPyParserError(loc, 'FPy expects an identifier', gen.target, gen)
 
     def _parse_statement(self, stmt: ast.stmt) -> Stmt:
         """Parse a Python statement."""

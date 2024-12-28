@@ -225,6 +225,15 @@ class _IRCodegenInstance(AstVisitor):
     def _visit_tuple_expr(self, e, ctx: _CtxType):
         return ir.TupleExpr(*[self._visit(arg, ctx) for arg in e.args])
 
+    def _visit_comp_expr(self, e, ctx: _CtxType):
+        iterable = self._visit(e.iterable, ctx)
+        # generate fresh variable for the loop variable
+        iter_var = self.gensym.fresh(e.var)
+        ctx = { **ctx, e.var: iter_var }
+        # compile the loop body
+        elt = self._visit(e.elt, ctx)
+        return ir.CompExpr(elt, iter_var, iterable)
+
     def _visit_if_expr(self, e, ctx: _CtxType):
         return ir.IfExpr(
             self._visit(e.cond, ctx),
