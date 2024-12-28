@@ -251,11 +251,11 @@ def nmse3_1(x: Real) -> Real:
     strict=True
 )
 def instCurrent(
-    t : Real,
-    resistance : Real,
-    frequency : Real,
-    inductance : Real,
-    maxVoltage : Real
+    t: Real,
+    resistance: Real,
+    frequency: Real,
+    inductance: Real,
+    maxVoltage: Real
 ):
     pi = 3.14159265359
     impedance_re = resistance
@@ -289,11 +289,11 @@ def azimuth(lat1: Real, lat2: Real, lon1: Real, lon2: Real):
     strict=True
 )
 def lod_anisotropic(
-    dx_u : Real,
-    dx_v : Real,
-    dy_u : Real,
-    dy_v : Real,
-    max_aniso : Real,
+    dx_u: Real,
+    dx_v: Real,
+    dy_u: Real,
+    dy_v: Real,
+    max_aniso: Real,
 ):
     dx2 = dx_u ** 2 + dx_v ** 2
     dy2 = dy_u ** 2 + dy_v ** 2
@@ -321,6 +321,23 @@ def lod_anisotropic(
     lod = log2(minor)
     return lod, aniso_ratio, aniso_dir_u, aniso_dir_v
 
+
+@fpcore(
+    name='Whetstone Loop 1',
+    cite=['Curnow-and-Wichmann-1976'],
+)
+def whetsone1(n: int):
+    t = 0.499975
+    x1 = 1.0
+    x2 = -1.0
+    x3 = -1.0
+    x4 = -1.0
+    for _ in range(n):
+        x1 = (x1 + x2 + x3 - x4) * t
+        x2 = (x1 + x2 - x3 - x4) * t
+        x3 = (x1 - x2 + x3 + x4) * t
+        x4 = (-x1 + x2 + x3 + x4) * t
+    return x1, x2, x3, x4
 
 ### Compile loop
 
@@ -359,7 +376,8 @@ cores: list[Function] = [
     nmse3_1,
     instCurrent,
     azimuth,
-    lod_anisotropic
+    lod_anisotropic,
+    whetsone1
 ]
 
 comp = FPCoreCompiler()

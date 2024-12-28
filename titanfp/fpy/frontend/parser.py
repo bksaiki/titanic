@@ -174,6 +174,12 @@ class Parser:
         match ann:
             case ast.Name('Real'):
                 return ScalarTypeAnn(ScalarType.REAL, loc)
+            case ast.Name('int'):
+                return ScalarTypeAnn(ScalarType.REAL, loc)
+            case ast.Name('float'):
+                return ScalarTypeAnn(ScalarType.REAL, loc)
+            case ast.Name('bool'):
+                return ScalarTypeAnn(ScalarType.BOOL, loc)
             case _:
                 raise FPyParserError(loc, 'Unsupported FPy type annotation', ann)
 
