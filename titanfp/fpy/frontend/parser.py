@@ -316,11 +316,14 @@ class Parser:
             case ast.List():
                 return TupleExpr([self._parse_expr(e) for e in e.elts], loc)
             case ast.ListComp():
-                if len(e.generators) != 1:
-                    raise FPyParserError(loc, 'FPy only supports a single generator', e)
+                vars: list[str] = []
+                iterables: list[Expr] = []
+                for gen in e.generators:
+                    var, iterable = self._parse_comprehension(gen, loc)
+                    vars.append(var)
+                    iterables.append(iterable)
                 elt = self._parse_expr(e.elt)
-                var, iterable = self._parse_comprehension(e.generators[0], loc)
-                return CompExpr(elt, var, iterable, loc)
+                return CompExpr(vars, iterables, elt, loc)
             case ast.IfExp():
                 cond = self._parse_expr(e.test)
                 ift = self._parse_expr(e.body)

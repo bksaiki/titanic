@@ -228,13 +228,14 @@ class DefaultVisitor(Visitor):
         for c in e.children:
             self._visit(c, ctx)
 
-    def _visit_ref_expr(self, e: RefExpr, ctx):
+    def _visit_ref_expr(self, e: RefExpr, ctx: Any):
         self._visit(e.array, ctx)
         for c in e.indices:
             self._visit(c, ctx)
 
-    def _visit_comp_expr(self, e: CompExpr, ctx):
-        self._visit(e.iterable, ctx)
+    def _visit_comp_expr(self, e: CompExpr, ctx: Any):
+        for iterable in e.iterables:
+            self._visit(iterable, ctx)
         self._visit(e.elt, ctx)
 
     def _visit_if_expr(self, e: IfExpr, ctx: Any):
@@ -328,9 +329,9 @@ class DefaultTransformVisitor(TransformVisitor):
         return RefExpr(array, *indices)
 
     def _visit_comp_expr(self, e, ctx):
-        iterable = self._visit(e.iterable, ctx)
+        iterables = [self._visit(iterable, ctx) for iterable in e.iterables]
         elt = self._visit(e.elt, ctx)
-        return CompExpr(elt, e.var, iterable)
+        return CompExpr(e.vars, iterables, elt)
 
     def _visit_if_expr(self, e, ctx: Any):
         cond = self._visit(e.cond, ctx)

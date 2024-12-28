@@ -5,7 +5,7 @@ This module contains the AST for FPy programs.
 from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Self
+from typing import Any, Optional, Self, Sequence
 from ..utils import CompareOp
 
 @dataclass
@@ -49,6 +49,14 @@ class ScalarTypeAnn(TypeAnn):
     def __init__(self, kind: ScalarType, loc: Location):
         super().__init__(loc)
         self.kind = kind
+
+class TupleTypeAnn(TypeAnn):
+    """FPy AST: tuple type annotation"""
+    elts: list[TypeAnn]
+
+    def __init__(self, elts: list[TypeAnn], loc: Location):
+        super().__init__(loc)
+        self.elts = elts
 
 class Expr(Ast):
     """FPy AST: expression"""
@@ -275,21 +283,21 @@ class TupleExpr(Expr):
 
 class CompExpr(Expr):
     """FPy AST: comprehension expression"""
+    vars: list[str]
+    iterables: list[Expr]
     elt: Expr
-    var: str
-    iterable: Expr
 
     def __init__(
         self,
+        vars: Sequence[str],
+        iterables: Sequence[Expr],
         elt: Expr,
-        var: str,
-        iterable: Expr,
         loc: Location
     ):
         super().__init__(loc)
+        self.vars = list(vars)
+        self.iterables = list(iterables)
         self.elt = elt
-        self.var = var
-        self.iterable = iterable
 
 class IfExpr(Expr):
     """FPy AST: if expression"""

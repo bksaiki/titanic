@@ -385,15 +385,15 @@ class TupleExpr(Expr):
 
 class CompExpr(Expr):
     """FPy node: comprehension expression"""
+    vars: list[str]
+    iterables: list[Expr]
     elt: Expr
-    var: str
-    iterable: Expr
 
-    def __init__(self, elt: Expr, var: str, iterable: Expr):
+    def __init__(self, vars: Sequence[str], iterables: Sequence[Expr], elt: Expr):
         super().__init__()
+        self.vars = list(vars)
+        self.iterables = list(iterables)
         self.elt = elt
-        self.var = var
-        self.iterable = iterable
 
 class RefExpr(Expr):
     """FPy node: ref expression"""

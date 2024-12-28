@@ -198,22 +198,27 @@ class FPCoreCompileInstance(ReduceVisitor):
         return fpc.Ref(array, *indices)
 
     def _visit_comp_expr(self, e, ctx):
-        tuple_id = self.gensym.fresh('t')
-        iter_id = self.gensym.fresh('i')
-        iterable = self._visit(e.iterable, ctx)
-        elt = self._visit(e.elt, ctx)
+        if len(e.vars) == 1:
+            iterable = e.iterables[0]
+            var = e.vars[0]
 
-        let_bindings = [(tuple_id, iterable)]
-        tensor_dims = [(iter_id, fpc.Size(tuple_id))]
-        ref_bindings = [(e.var, fpc.Ref(fpc.Var(tuple_id), fpc.Var(iter_id)))]
-        return fpc.Let(let_bindings, fpc.Tensor(tensor_dims, fpc.Let(ref_bindings, elt)))
+            tuple_id = self.gensym.fresh('t')
+            iter_id = self.gensym.fresh('i')
+            iterable = self._visit(iterable, ctx)
+            elt = self._visit(e.elt, ctx)
+
+            let_bindings = [(tuple_id, iterable)]
+            tensor_dims = [(iter_id, fpc.Size(tuple_id))]
+            ref_bindings = [(var, fpc.Ref(fpc.Var(tuple_id), fpc.Var(iter_id)))]
+            return fpc.Let(let_bindings, fpc.Tensor(tensor_dims, fpc.Let(ref_bindings, elt)))
+        else:
+            raise NotImplementedError('only single variable comprehensions are supported')
 
     def _visit_if_expr(self, e, ctx) -> fpc.Expr:
-        return fpc.If(
-            self._visit(e.cond, ctx),
-            self._visit(e.ift, ctx),
-            self._visit(e.iff, ctx)
-        )
+        cond = self._visit(e.cond, ctx)
+        ift = self._visit(e.ift, ctx)
+        iff = self._visit(e.iff, ctx)
+        return fpc.If(cond, ift, iff)
 
     def _visit_var_assign(self, stmt: VarAssign, ctx: fpc.Expr):
         bindings = [(stmt.var, self._visit(stmt.expr, None))]
@@ -287,12 +292,7 @@ class FPCoreCompileInstance(ReduceVisitor):
 
         # compile body
         e = self._visit(func.body, ctx)
-
-        return fpc.FPCore(
-            ident=func.name,
-            inputs=args,
-            e=e,
-        )
+        return fpc.FPCore(ident=func.name, inputs=args, e=e)
 
     # override for typing hint
     def _visit(self, e, ctx) -> fpc.Expr:

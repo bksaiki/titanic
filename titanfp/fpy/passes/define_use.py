@@ -25,9 +25,11 @@ class _DefineUseInstance(DefaultVisitor):
             raise NotImplementedError(f'undefined variable {e.name}')
         self.uses[e.name].add(e)
 
-    def _visit_comp_expr(self, e, ctx):
-        self._visit(e.iterable, ctx)
-        self.uses[e.var] = set()
+    def _visit_comp_expr(self, e: CompExpr, ctx):
+        for iterable in e.iterables:
+            self._visit(iterable, ctx)
+        for var in e.vars:
+            self.uses[var] = set()
         self._visit(e.elt, ctx)
 
     def _visit_var_assign(self, stmt: VarAssign, ctx):

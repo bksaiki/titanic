@@ -77,8 +77,10 @@ class LiveVarAnalysis(AstVisitor):
 
     def _visit_comp_expr(self, e, ctx) -> _LiveSet:
         live = self._visit(e.elt, ctx)
-        live -= {e.var}
-        return live | self._visit(e.iterable, ctx)
+        live -= set(e.vars)
+        for iterable in e.iterables:
+            live |= self._visit(iterable, ctx)
+        return live
 
     def _visit_if_expr(self, e, ctx) -> _LiveSet:
         cond_live = self._visit(e.cond, ctx)

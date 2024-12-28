@@ -138,6 +138,10 @@ def test_list2():
 def test_list_comp1():
     return [x + 1 for x in range(5)]
 
+@fpcore
+def test_list_comp2():
+    return [x + y for x in range(4) for y in range(5)]
+
 @fpcore(name='Test if statement (1/4)')
 def test_if1():
     t = 0
@@ -336,6 +340,14 @@ def lod_anisotropic(
     lod = log2(minor)
     return lod, aniso_ratio, aniso_dir_u, aniso_dir_v
 
+# @fpcore(name='Ray-sphere intersection')
+# def ray_sphere(
+#     origin: tuple[Real, Real, Real],
+#     direction: tuple[Real, Real, Real],
+#     center: tuple[Real, Real, Real],
+#     radius: Real
+# ):
+#     pass
 
 @fpcore(
     name='Whetstone Loop 1',
@@ -378,6 +390,7 @@ cores: list[Function] = [
     test_list1,
     test_list2,
     test_list_comp1,
+    test_list_comp2,
     test_if1,
     test_if2,
     test_if3,
