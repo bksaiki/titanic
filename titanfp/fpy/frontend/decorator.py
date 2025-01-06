@@ -9,6 +9,7 @@ from .definition import DefinitionAnalysis
 from .fpyast import Function
 from .live_vars import LiveVarAnalysis
 from .parser import Parser
+from .syntax_check import SyntaxCheck
 
 from ..passes import VerifyIR, DefineUse
 
@@ -36,6 +37,7 @@ def fpcore(*args, **kwargs):
         assert isinstance(ast, Function), "must be a function"
 
         # analyze and lower to the IR
+        SyntaxCheck.analyze(ast)
         DefinitionAnalysis().analyze(ast)
         LiveVarAnalysis().analyze(ast)
         ir = IRCodegen.lower(ast)
