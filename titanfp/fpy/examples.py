@@ -1,57 +1,57 @@
 from .backend import FPCoreCompiler
-from .frontend.decorator import fpcore
+from .frontend.decorator import fpy
 from .ir import Function
 from .typing import *
 
 ### Simple tests
 
-@fpcore
+@fpy
 def test_simple1():
     return 0
 
-@fpcore(
+@fpy(
     name='Test annotation',
     spec='0.0'
 )
 def test_simple2():
     return 0
 
-@fpcore(
+@fpy(
     name='Test decnum (1/1)',
     spec='0.0'
 )
 def test_decnum():
     return 0.0
 
-@fpcore(
+@fpy(
     name='Test digits (1/4)',
     spec='0.0'
 )
 def test_digits1():
     return digits(0, 0, 2)
 
-@fpcore(
+@fpy(
     name='Test digits (2/4)',
     spec='1.0'
 )
 def test_digits2():
     return digits(1, 0, 2)
 
-@fpcore(
+@fpy(
     name='Test digits (3/4)',
     spec='-2.0'
 )
 def test_digits3():
     return digits(-1, 0, 2)
 
-@fpcore(
+@fpy(
     name='Test digits (4/4)',
     spec='1.5'
 )
 def test_digits4():
     return digits(3, -1, 2)
 
-@fpcore(
+@fpy(
     name='Test let (1/2)',
     spec='1.0'
 )
@@ -59,7 +59,7 @@ def test_let1():
     a = 1.0
     return a
 
-@fpcore(
+@fpy(
     name='Test let (2/2)',
     spec='2.0'
 )
@@ -68,18 +68,18 @@ def test_let2():
     b = 1.0
     return a + b
 
-@fpcore(
+@fpy(
   name='Test if expression (1/6)',
   spec='1.0'
 )
 def test_ife1():
   return 1.0 if 1.0 > 0.0 else 0.0
 
-@fpcore(name='Test if expression (2/6)')
+@fpy(name='Test if expression (2/6)')
 def test_ife2():
   return 1.0 if 0.0 < 1.0 < 2.0 else 0.0
 
-@fpcore(name='Test if expression (3/6)')
+@fpy(name='Test if expression (3/6)')
 def test_ife3():
   x = 1.0
   y = 2.0
@@ -87,7 +87,7 @@ def test_ife3():
   t = 4.0
   return 1.0 if (x + 1.0) < (y < 2.0) < (z + 3.0) < (t + 4.0) else 0.0
 
-@fpcore(name='Test if expression (4/6)')
+@fpy(name='Test if expression (4/6)')
 def test_ife4():
   x = 1.0
   y = 2.0
@@ -95,53 +95,53 @@ def test_ife4():
   t = 4.0
   return 1.0 if (x + 1.0) < (y + 2.0) <= (z + 3.0) < (t + 4.0) else 0.0
 
-@fpcore
+@fpy
 def test_tuple1():
     return (1.0, 2.0, 3.0)
 
-@fpcore
+@fpy
 def test_tuple2():
     return 1.0, 2.0, 3.0
 
-@fpcore
+@fpy
 def test_tuple3():
     x, y = 1.0, 2.0
     return x + y
 
-@fpcore
+@fpy
 def test_tuple4():
     x, y = (1.0, 2.0), (3.0, 4.0)
     x0, x1 = x
     y0, y1 = y
     return x0 * y0 + x1 * y1
 
-@fpcore
+@fpy
 def test_list1():
     return [1.0, 2.0, 3.0]
 
-@fpcore
+@fpy
 def test_list2():
     x, y = [1.0, 2.0], [3.0, 4.0]
     x0, x1 = x
     y0, y1 = y
     return x0 * y0 + x1 * y1
 
-@fpcore
+@fpy
 def test_list_comp1():
     return [x + 1 for x in range(5)]
 
-@fpcore
+@fpy
 def test_list_comp2():
     return [x + y for x in range(4) for y in range(5)]
 
-@fpcore(name='Test if statement (1/4)')
+@fpy(name='Test if statement (1/4)')
 def test_if1():
     t = 0
     if 0 < 1:
         t = 1
     return t
 
-@fpcore(name='Test if statement (2/4)')
+@fpy(name='Test if statement (2/4)')
 def test_if2():
     if 0 < 1:
         t = 1
@@ -149,7 +149,7 @@ def test_if2():
         t = 0
     return t
 
-@fpcore(name='Test if statement (3/4)')
+@fpy(name='Test if statement (3/4)')
 def test_if3():
     if 0 < 1:
         if 1 < 2:
@@ -163,7 +163,7 @@ def test_if3():
             t = 3
     return t
 
-@fpcore(name='Test if statement (4/4)')
+@fpy(name='Test if statement (4/4)')
 def test_if4():
     if 0 < 1:
         t = 0
@@ -173,14 +173,14 @@ def test_if4():
         t = 2
     return t
 
-@fpcore
+@fpy
 def test_while1():
     x = 0
     while x < 1:
         x = 1
     return x
 
-@fpcore
+@fpy
 def test_while2():
     x = 0
     t = 1
@@ -188,7 +188,7 @@ def test_while2():
         x = 1
     return x + t
 
-@fpcore
+@fpy
 def test_while3():
     x = 0
     y = 0
@@ -197,7 +197,7 @@ def test_while3():
         y += x
     return x, y
 
-@fpcore
+@fpy
 def test_while4():
     x = 0
     y = 0
@@ -207,7 +207,7 @@ def test_while4():
             x += y
     return x, y
 
-@fpcore
+@fpy
 def test_while5():
     x = 0
     y = 0
@@ -219,14 +219,14 @@ def test_while5():
             x += y
     return x, y
 
-@fpcore
+@fpy
 def test_for1():
     j = 0
     for i in range(5):
         j += i
     return j
 
-@fpcore
+@fpy
 def test_for2():
     accum = 0
     for i in range(5):
@@ -234,7 +234,7 @@ def test_for2():
             accum += i * j
     return accum
 
-@fpcore
+@fpy
 def test_for3():
     x = 0
     y = 0
@@ -245,7 +245,7 @@ def test_for3():
 
 ### Examples
 
-@fpcore(
+@fpy(
     name='NMSE example 3.1',
     cite=['hamming-1987', 'herbie-2015'],
     fpbench_domain='textbook',
@@ -254,7 +254,7 @@ def nmse3_1(x: Real) -> Real:
     return sqrt(x + 1) - sqrt(x)
 
 # TODO: precondition
-@fpcore(
+@fpy(
     name='Daisy example instantaneousCurrent',
     cite=['daisy-2018']
 )
@@ -275,7 +275,7 @@ def instCurrent(
     theta = atan(current_im / current_re)
     return maxCurrent * cos(2 * pi * frequency * t + theta)
 
-@fpcore(
+@fpy(
     name='azimuth',
     cite=['solovyev-2015']
 )
@@ -290,7 +290,7 @@ def azimuth(lat1: Real, lat2: Real, lon1: Real, lon2: Real):
     return atan((c_lat2 * s_dLon) / ((c_lat1 * s_lat2) - (s_lat1 * c_lat2 * c_dLon)))
 
 # TODO: vectors should be tensors
-@fpcore(
+@fpy(
     name='Level-of-detail (LOD) algorithm, anisotropic case',
     cite=['DirectX 11.3 specification, Microsoft-2015']
 )
@@ -336,7 +336,7 @@ def lod_anisotropic(
 # ):
 #     pass
 
-@fpcore(
+@fpy(
     name='Whetstone Loop 1',
     cite=['Curnow-and-Wichmann-1976'],
 )

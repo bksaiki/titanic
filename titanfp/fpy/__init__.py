@@ -1,1 +1,1 @@
-from .frontend.decorator import fpcore
+from .frontend.decorator import fpy

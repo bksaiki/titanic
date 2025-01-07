@@ -13,7 +13,7 @@ from .syntax_check import SyntaxCheck
 
 from ..passes import VerifyIR, DefineUse
 
-def fpcore(*args, **kwargs):
+def fpy(*args, **kwargs):
     """
     Decorator to parse a Python function into FPy.
 
