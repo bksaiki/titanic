@@ -70,11 +70,14 @@ class FPCoreCompileError(Exception):
     pass
 
 def _nary_mul(args: list[fpc.Expr]):
-    assert len(args) >= 2, 'must be at least 2 arguments'
-    e = fpc.Mul(args[0], args[1])
-    for arg in args[2:]:
-        e = fpc.Mul(e, arg)
-    return e
+    assert args != [], 'must be at least 1 argument'
+    if len(args) == 1:
+        return args[0]
+    else:
+        e = fpc.Mul(args[0], args[1])
+        for arg in args[2:]:
+            e = fpc.Mul(e, arg)
+        return e
 
 class FPCoreCompileInstance(ReduceVisitor):
     """Compilation instance from FPy to FPCore"""
@@ -225,10 +228,10 @@ class FPCoreCompileInstance(ReduceVisitor):
             # (let ([t0 <iterable>] ...)
             #   (let ([n0 (size t0)] ...)
             #     (tensor ([k (! :precision integer (* n0 ...))])
-            #       (let ([i0 (! :precision integer :round toZero (fmod k n0))]
-            #             [i1 (! :precision integer :round toZero (fmod (/ k n0) n1))]
+            #       (let ([i0 (! :precision integer :round toZero (/ k (* n1 ...)))]
+            #             [i1 (! :precision integer :round toZero (fmod (/ k (* n2 ...)) n1))]
             #             ...
-            #             [iN (! :precision integer :round toZero (/ ... nN))])
+            #             [iN (! :precision integer :round toZero (fmod k nN))])
             #         (let ([v0 (ref t0 i0)] ...)
             #           <elt>))))
 
@@ -245,12 +248,22 @@ class FPCoreCompileInstance(ReduceVisitor):
                 for sid, tid in zip(size_ids, tuple_ids)
             ]
             # bind the indices to temporaries
-            idx_ids = [self.gensym.fresh('i') for _ in e.vars]
             idx_ctx = { 'precision': 'integer', 'round': 'toZero' }
+            idx_ids = [self.gensym.fresh('i') for _ in e.vars]
             idx_binds: list[tuple[str, fpc.Expr]] = []
+            for i, iid in enumerate(idx_ids):
+                if i == 0:
+                    mul_expr = _nary_mul([fpc.Var(id) for id in size_ids[1:]])
+                    idx_expr = fpc.Ctx(idx_ctx, fpc.Div(fpc.Var('k'), mul_expr))
+                elif i == len(size_ids) - 1:
+                    idx_expr = fpc.Ctx(idx_ctx, fpc.Fmod(fpc.Var('k'), fpc.Var(size_ids[i])))
+                else:
+                    mul_expr = _nary_mul([fpc.Var(id) for id in size_ids[1:]])
+                    idx_expr = fpc.Ctx(idx_ctx, fpc.Fmod(fpc.Div(fpc.Var('k'), mul_expr), fpc.Var(size_ids[i])))
+                idx_binds.append((iid, idx_expr))
             # iteration variable
-            iter_id = self.gensym.fresh('k')
             iter_ctx = { 'precision': 'integer'}
+            iter_id = self.gensym.fresh('k')
             iter_expr = fpc.Ctx(iter_ctx, _nary_mul([fpc.Var(sid) for sid in size_ids]))
             # reference variables
             ref_ids = [self.gensym.fresh(var) for var in e.vars]
@@ -261,22 +274,8 @@ class FPCoreCompileInstance(ReduceVisitor):
             # element expression
             elt = self._visit(e.elt, ctx)
             # compose the expression
-            return fpc.Let(
-                tuple_binds,
-                fpc.Let(
-                    size_binds,
-                    fpc.Tensor(
-                        [(iter_id, iter_expr)],
-                        fpc.Let(
-                            idx_binds,
-                            fpc.Let(
-                                ref_binds,
-                                elt
-                            )
-                        )
-                    )
-                )
-            )
+            tensor_expr = fpc.Tensor([(iter_id, iter_expr)], fpc.Let(idx_binds, fpc.Let(ref_binds, elt)))
+            return fpc.Let(tuple_binds, fpc.Let(size_binds, tensor_expr))
 
     def _visit_if_expr(self, e, ctx) -> fpc.Expr:
         cond = self._visit(e.cond, ctx)
