@@ -38,8 +38,8 @@ def fpcore(*args, **kwargs):
 
         # analyze and lower to the IR
         SyntaxCheck.analyze(ast)
-        DefinitionAnalysis().analyze(ast)
-        LiveVarAnalysis().analyze(ast)
+        DefinitionAnalysis.analyze(ast)
+        LiveVarAnalysis.analyze(ast)
         ir = IRCodegen.lower(ast)
         VerifyIR.check(ir)
         return ir

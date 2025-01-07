@@ -7,21 +7,16 @@ from .visitor import AstVisitor
 
 _DefSet = set[str]
 
-class DefinitionAnalysis(AstVisitor):
-    """
-    Definition analyzer on the AST.
+class DefinitionAnalysisInstance(AstVisitor):
+    """Single-use definition analyzer."""
+    func: Function
 
-    Associates to each statement block the set of variables defined in it.
-    This is not the same as the set of variables in scope.
-    """
+    def __init__(self, func: Function):
+        self.func = func
 
-    analysis_name = 'def_vars'
-
-    def analyze(self, func: Function):
-        """Analyze the defined variables in a function."""
-        if not isinstance(func, Function):
-            raise TypeError(f'expected a Function, got {func}')
-        self._visit(func, set())
+    def analyze(self):
+        """Analyze the function."""
+        self._visit(self.func, set())
 
     def _visit_var(self, e, ctx):
         raise NotImplementedError('should not be called')
@@ -89,7 +84,7 @@ class DefinitionAnalysis(AstVisitor):
         def_out: _DefSet = set()
         for stmt in block.stmts:
             def_out = self._visit(stmt, def_out)
-        block.attribs[self.analysis_name] = (def_in, def_out)
+        block.attribs[DefinitionAnalysis.analysis_name] = (def_in, def_out)
         return def_out
 
     def _visit_function(self, func, ctx: _DefSet):
@@ -97,3 +92,20 @@ class DefinitionAnalysis(AstVisitor):
         for arg in func.args:
             ctx.add(arg.name)
         self._visit(func.body, ctx)
+
+class DefinitionAnalysis:
+    """
+    Definition analyzer on the AST.
+
+    Associates to each statement block the set of variables defined in it.
+    This is not the same as the set of variables in scope.
+    """
+
+    analysis_name = 'def_vars'
+
+    @staticmethod
+    def analyze(func: Function):
+        """Analyze the defined variables in a function."""
+        if not isinstance(func, Function):
+            raise TypeError(f'expected a Function, got {func}')
+        DefinitionAnalysisInstance(func).analyze()

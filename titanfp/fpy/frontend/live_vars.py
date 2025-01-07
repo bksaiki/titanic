@@ -5,10 +5,8 @@ from .visitor import AstVisitor
 
 _LiveSet = set[str]
 
-class LiveVarAnalysis(AstVisitor):
-    """Live variable analyzer on the AST."""
-
-    analysis_name = 'live_vars'
+class LiveVarAnalysisInstance(AstVisitor):
+    """Single-use live variable analyzer"""
 
     def analyze(self, func: Function):
         """Analyze the live variables in a function."""
@@ -18,25 +16,25 @@ class LiveVarAnalysis(AstVisitor):
 
     def _visit_var(self, e, ctx) -> _LiveSet:
         live = { e.name }
-        e.attribs[self.analysis_name] = set(live)
+        e.attribs[LiveVarAnalysis.analysis_name] = set(live)
         return live
 
     def _visit_decnum(self, e, ctx) -> _LiveSet:
-        e.attribs[self.analysis_name] = set()
+        e.attribs[LiveVarAnalysis.analysis_name] = set()
         return set()
 
     def _visit_integer(self, e, ctx) -> _LiveSet:
-        e.attribs[self.analysis_name] = set()
+        e.attribs[LiveVarAnalysis.analysis_name] = set()
         return set()
 
     def _visit_unaryop(self, e, ctx) -> _LiveSet:
         live = self._visit(e.arg, ctx)
-        e.attribs[self.analysis_name] = set(live)
+        e.attribs[LiveVarAnalysis.analysis_name] = set(live)
         return live
 
     def _visit_binaryop(self, e, ctx) -> _LiveSet:
         live = self._visit(e.left, ctx) | self._visit(e.right, ctx)
-        e.attribs[self.analysis_name] = set(live)
+        e.attribs[LiveVarAnalysis.analysis_name] = set(live)
         return live
 
     def _visit_ternaryop(self, e, ctx) -> _LiveSet:
@@ -44,35 +42,35 @@ class LiveVarAnalysis(AstVisitor):
         live1 = self._visit(e.arg1, ctx)
         live2 = self._visit(e.arg2, ctx)
         live = live0 | live1 | live2
-        e.attribs[self.analysis_name] = set(live)
+        e.attribs[LiveVarAnalysis.analysis_name] = set(live)
         return live
 
     def _visit_naryop(self, e, ctx) -> _LiveSet:
         live: set[str] = set()
         for arg in e.args:
             live |= self._visit(arg, ctx)
-        e.attribs[self.analysis_name] = set(live)
+        e.attribs[LiveVarAnalysis.analysis_name] = set(live)
         return live
 
     def _visit_compare(self, e, ctx) -> _LiveSet:
         live: set[str] = set()
         for arg in e.args:
             live |= self._visit(arg, ctx)
-        e.attribs[self.analysis_name] = set(live)
+        e.attribs[LiveVarAnalysis.analysis_name] = set(live)
         return live
 
     def _visit_call(self, e, ctx) -> _LiveSet:
         live: set[str] = set()
         for arg in e.args:
             live |= self._visit(arg, ctx)
-        e.attribs[self.analysis_name] = set(live)
+        e.attribs[LiveVarAnalysis.analysis_name] = set(live)
         return live
 
     def _visit_tuple_expr(self, e, ctx) -> _LiveSet:
         live: set[str] = set()
         for arg in e.args:
             live |= self._visit(arg, ctx)
-        e.attribs[self.analysis_name] = set(live)
+        e.attribs[LiveVarAnalysis.analysis_name] = set(live)
         return live
 
     def _visit_comp_expr(self, e, ctx) -> _LiveSet:
@@ -87,7 +85,7 @@ class LiveVarAnalysis(AstVisitor):
         ift_live = self._visit(e.ift, ctx)
         iff_live = self._visit(e.iff, ctx)
         live = cond_live | ift_live | iff_live
-        e.attribs[self.analysis_name] = set(live)
+        e.attribs[LiveVarAnalysis.analysis_name] = set(live)
         return live
 
     def _visit_var_assign(self, stmt, ctx: _LiveSet) -> _LiveSet:
@@ -128,10 +126,23 @@ class LiveVarAnalysis(AstVisitor):
             else:
                 stmt_out = set(ctx)
             ctx = self._visit(stmt, ctx)
-            stmt.attribs[self.analysis_name] = (set(ctx), stmt_out)
+            stmt.attribs[LiveVarAnalysis.analysis_name] = (set(ctx), stmt_out)
 
-        block.attribs[self.analysis_name] = (set(ctx), block_out)
+        block.attribs[LiveVarAnalysis.analysis_name] = (set(ctx), block_out)
         return ctx
 
     def _visit_function(self, func, ctx: _LiveSet):
-        self._visit(func.body, ctx)
+        return self._visit(func.body, ctx)
+
+
+class LiveVarAnalysis:
+    """Live variable analysis for the FPy AST."""
+
+    analysis_name = 'live_vars'
+
+    @staticmethod
+    def analyze(func: Function):
+        """Analyze the live variables in a function."""
+        if not isinstance(func, Function):
+            raise TypeError(f'expected a Function, got {func}')
+        LiveVarAnalysisInstance().analyze(func)
