@@ -130,9 +130,9 @@ def test_list2():
 def test_list_comp1():
     return [x + 1 for x in range(5)]
 
-# @fpcore
-# def test_list_comp2():
-#     return [x + y for x in range(4) for y in range(5)]
+@fpcore
+def test_list_comp2():
+    return [x + y for x in range(4) for y in range(5)]
 
 @fpcore(name='Test if statement (1/4)')
 def test_if1():
@@ -377,7 +377,7 @@ cores: list[Function] = [
     test_list1,
     test_list2,
     test_list_comp1,
-    # test_list_comp2,
+    test_list_comp2,
     test_if1,
     test_if2,
     test_if3,

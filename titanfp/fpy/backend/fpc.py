@@ -69,6 +69,13 @@ class FPCoreCompileError(Exception):
     """Any FPCore compilation error"""
     pass
 
+def _nary_mul(args: list[fpc.Expr]):
+    assert len(args) >= 2, 'must be at least 2 arguments'
+    e = fpc.Mul(args[0], args[1])
+    for arg in args[2:]:
+        e = fpc.Mul(e, arg)
+    return e
+
 class FPCoreCompileInstance(ReduceVisitor):
     """Compilation instance from FPy to FPCore"""
     func: Function
@@ -197,8 +204,10 @@ class FPCoreCompileInstance(ReduceVisitor):
         indices = [self._visit(c, ctx) for c in e.indices]
         return fpc.Ref(array, *indices)
 
-    def _visit_comp_expr(self, e, ctx):
+    def _visit_comp_expr(self, e, ctx) -> fpc.Expr:
         if len(e.vars) == 1:
+            # simple case:
+            # (let ([t <iterable>]) (tensor ([i (size t)]) (let ([<var> (ref t i)]) <elt>))
             iterable = e.iterables[0]
             var = e.vars[0]
 
@@ -208,11 +217,66 @@ class FPCoreCompileInstance(ReduceVisitor):
             elt = self._visit(e.elt, ctx)
 
             let_bindings = [(tuple_id, iterable)]
-            tensor_dims = [(iter_id, fpc.Size(tuple_id))]
-            ref_bindings = [(var, fpc.Ref(fpc.Var(tuple_id), fpc.Var(iter_id)))]
+            tensor_dims: list[tuple[str, fpc.Expr]] = [(iter_id, fpc.Size(tuple_id))]
+            ref_bindings: list[tuple[str, fpc.Expr]] = [(var, fpc.Ref(fpc.Var(tuple_id), fpc.Var(iter_id)))]
             return fpc.Let(let_bindings, fpc.Tensor(tensor_dims, fpc.Let(ref_bindings, elt)))
         else:
-            raise NotImplementedError('only single variable comprehensions are supported')
+            # hard case:
+            # (let ([t0 <iterable>] ...)
+            #   (let ([n0 (size t0)] ...)
+            #     (tensor ([k (! :precision integer (* n0 ...))])
+            #       (let ([i0 (! :precision integer :round toZero (fmod k n0))]
+            #             [i1 (! :precision integer :round toZero (fmod (/ k n0) n1))]
+            #             ...
+            #             [iN (! :precision integer :round toZero (/ ... nN))])
+            #         (let ([v0 (ref t0 i0)] ...)
+            #           <elt>))))
+
+            # bind the tuples to temporaries
+            tuple_ids = [self.gensym.fresh('t') for _ in e.vars]
+            tuple_binds: list[tuple[str, fpc.Expr]] = [
+                (tid, self._visit(iterable, ctx))
+                for tid, iterable in zip(tuple_ids, e.iterables)
+            ]
+            # bind the sizes to temporaries
+            size_ids = [self.gensym.fresh('n') for _ in e.vars]
+            size_binds: list[tuple[str, fpc.Expr]] = [
+                (sid, fpc.Size(tid))
+                for sid, tid in zip(size_ids, tuple_ids)
+            ]
+            # bind the indices to temporaries
+            idx_ids = [self.gensym.fresh('i') for _ in e.vars]
+            idx_ctx = { 'precision': 'integer', 'round': 'toZero' }
+            idx_binds: list[tuple[str, fpc.Expr]] = []
+            # iteration variable
+            iter_id = self.gensym.fresh('k')
+            iter_ctx = { 'precision': 'integer'}
+            iter_expr = fpc.Ctx(iter_ctx, _nary_mul([fpc.Var(sid) for sid in size_ids]))
+            # reference variables
+            ref_ids = [self.gensym.fresh(var) for var in e.vars]
+            ref_binds: list[tuple[str, fpc.Expr]] = [
+                (rid, fpc.Ref(fpc.Var(tid), fpc.Var(iid)))
+                for rid, tid, iid in zip(ref_ids, tuple_ids, idx_ids)
+            ]
+            # element expression
+            elt = self._visit(e.elt, ctx)
+            # compose the expression
+            return fpc.Let(
+                tuple_binds,
+                fpc.Let(
+                    size_binds,
+                    fpc.Tensor(
+                        [(iter_id, iter_expr)],
+                        fpc.Let(
+                            idx_binds,
+                            fpc.Let(
+                                ref_binds,
+                                elt
+                            )
+                        )
+                    )
+                )
+            )
 
     def _visit_if_expr(self, e, ctx) -> fpc.Expr:
         cond = self._visit(e.cond, ctx)
@@ -291,8 +355,8 @@ class FPCoreCompileInstance(ReduceVisitor):
         # TODO: parse data
 
         # compile body
-        e = self._visit(func.body, ctx)
-        return fpc.FPCore(ident=func.name, inputs=args, e=e)
+        body = self._visit(func.body, ctx)
+        return fpc.FPCore(ident=func.name, inputs=args, e=body)
 
     # override for typing hint
     def _visit(self, e, ctx) -> fpc.Expr:
